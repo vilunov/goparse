@@ -1,6 +1,7 @@
 pub mod literals;
+pub mod expr;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Keyword {
     Break, Case, Chan, Const, Continue, Default,
     Defer, Else, Fallthrough, For, Func, Go, Goto,
@@ -8,13 +9,13 @@ pub enum Keyword {
     Select, Struct, Switch, Type, Var,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum BinaryOp {
     Plus, Minus, Multiply, Divide, Modulus, And, Or, Hat,
     LeftShift, RightShift, AndHat,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum PairedToken {
     /// `(` or `)`
     Parenthesis,
@@ -24,7 +25,7 @@ pub enum PairedToken {
     Brace,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Operator {
     BinOp(BinaryOp), BinOpAssign(BinaryOp),
     And, Or, LeftArrow, Increment, Decrement,
@@ -33,3 +34,6 @@ pub enum Operator {
     Left(PairedToken), Right(PairedToken),
     Comma, Dot, Colon, Semicolon,
 }
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub struct Identifier(pub String);

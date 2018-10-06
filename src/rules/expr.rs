@@ -1,6 +1,9 @@
 use ast::BinaryOp;
+use ast::literals::Literal;
+use ast::expr::Expression;
+use rules::literals::literal_decimal;
 
-named!(pub bin_op<&[u8], BinaryOp>, alt_complete!(
+named!(pub bin_op<&str, BinaryOp>, alt!(
     tag!("+") =>  { |_| BinaryOp::Plus } |
     tag!("-") =>  { |_| BinaryOp::Minus } |
     tag!("*") =>  { |_| BinaryOp::Multiply } |
@@ -11,4 +14,19 @@ named!(pub bin_op<&[u8], BinaryOp>, alt_complete!(
     tag!("|") =>  { |_| BinaryOp::Or } |
     tag!("<<") => { |_| BinaryOp::LeftShift } |
     tag!(">>") => { |_| BinaryOp::RightShift }
+));
+
+
+named!(pub expr<&str, Expression>, do_parse!(
+    // left:  literal_decimal >>
+    tag!("1") >>
+    op:    bin_op          >>
+    tag!("1") >>
+    // right: literal_decimal >>
+    (Expression::Operation {
+        // left,
+        left: Box::new(Expression::Literal(Literal::IntegerDecimal("1".to_string()))),
+        op,
+        right: Box::new(Expression::Literal(Literal::IntegerDecimal("1".to_string()))),
+    })
 ));

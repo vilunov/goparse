@@ -1,25 +1,34 @@
 use ast::BinaryOp;
+use ast::literals::Literal;
+use ast::expr::Expression;
 use rules::expr::*;
 
-const EMPTY: &[u8] = &[];
+const EMPTY: &'static str = "";
+const ONE: &'static str = "1";
 
 macro_rules! test {
     ($name: ident, $input: expr, $expect: expr) => {
         #[test]
         fn $name() {
-            let result = bin_op($input);
-            assert_eq!(Ok((EMPTY, $expect)), result);
+            let input = format!("1{}1", $input);
+            let expect = Expression::Operation {
+                left: Box::new(Expression::Literal(Literal::IntegerDecimal(ONE.to_string()))),
+                op: $expect,
+                right: Box::new(Expression::Literal(Literal::IntegerDecimal(ONE.to_string()))),
+            };
+            let result = expr(&input);
+            assert_eq!(Ok((EMPTY, expect)), result);
         }
     }
 }
 
-test!(plus,    b"+",  BinaryOp::Plus);
-test!(minus,   b"-",  BinaryOp::Minus);
-test!(mult,    b"*",  BinaryOp::Multiply);
-test!(div,     b"/",  BinaryOp::Divide);
-test!(modulus, b"%",  BinaryOp::Modulus);
-test!(and,     b"&",  BinaryOp::And);
-test!(or,      b"|",  BinaryOp::Or);
-test!(shl,     b"<<", BinaryOp::LeftShift);
-test!(shr,     b">>", BinaryOp::RightShift);
-test!(andhat,  b"&^", BinaryOp::AndHat);
+test!(plus,    "+",  BinaryOp::Plus);
+test!(minus,   "-",  BinaryOp::Minus);
+test!(mult,    "*",  BinaryOp::Multiply);
+test!(div,     "/",  BinaryOp::Divide);
+test!(modulus, "%",  BinaryOp::Modulus);
+test!(and,     "&",  BinaryOp::And);
+test!(or,      "|",  BinaryOp::Or);
+test!(shl,     "<<", BinaryOp::LeftShift);
+test!(shr,     ">>", BinaryOp::RightShift);
+test!(andhat,  "&^", BinaryOp::AndHat);
