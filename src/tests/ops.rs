@@ -12,9 +12,9 @@ macro_rules! test {
         fn $name() {
             let input = format!("1{}1", $input);
             let expect = Expression::Operation {
-                left: Box::new(Expression::Literal(Literal::IntegerDecimal(ONE.to_string()))),
+                left: Box::new(Expression::Literal(Literal::Decimal(ONE.to_string()))),
                 op: $expect,
-                right: Box::new(Expression::Literal(Literal::IntegerDecimal(ONE.to_string()))),
+                right: Box::new(Expression::Literal(Literal::Decimal(ONE.to_string()))),
             };
             let result = expr(&input);
             assert_eq!(Ok((EMPTY, expect)), result);

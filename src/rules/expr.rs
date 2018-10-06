@@ -1,7 +1,6 @@
 use ast::BinaryOp;
 use ast::literals::Literal;
 use ast::expr::Expression;
-use rules::literals::literal_decimal;
 
 named!(pub bin_op<&str, BinaryOp>, alt!(
     tag!("+") =>  { |_| BinaryOp::Plus } |
@@ -25,8 +24,8 @@ named!(pub expr<&str, Expression>, do_parse!(
     // right: literal_decimal >>
     (Expression::Operation {
         // left,
-        left: Box::new(Expression::Literal(Literal::IntegerDecimal("1".to_string()))),
+        left: Box::new(Expression::Literal(Literal::Decimal("1".to_string()))),
         op,
-        right: Box::new(Expression::Literal(Literal::IntegerDecimal("1".to_string()))),
+        right: Box::new(Expression::Literal(Literal::Decimal("1".to_string()))),
     })
 ));

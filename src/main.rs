@@ -6,9 +6,9 @@ mod rules;
 mod ast;
 
 fn main() {
-    let literal = b"1488 test";
+    let literal = "\\00";
 
-    println!("{:?}", rules::literals::literal_decimal(literal));
+    println!("{:?}", rules::literals::literal_parse(literal));
 }
 
 #[cfg(test)]

@@ -1,4 +1,8 @@
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Literal {
-    IntegerDecimal(String),
+    Decimal(String),
+    Float(String),
+    Imaginary(String),
+    Character(String),
+    String(String)
 }
