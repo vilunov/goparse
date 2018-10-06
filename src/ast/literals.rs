@@ -1,0 +1,3 @@
+enum Literal {
+    IntegerDecimal(String),
+}
