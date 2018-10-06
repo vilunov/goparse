@@ -37,3 +37,8 @@ pub enum Operator {
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Identifier(pub String);
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+pub struct Program {
+    pub package: Identifier,
+}
