@@ -5,6 +5,8 @@ pub mod expr;
 
 use ast::*;
 
+named!(pub line_sep<&str, &str>, tag!(";"));
+
 named!(pub keyword<&str, Keyword>, alt!(
     tag!("break") => { |_| Keyword::Break }
 ));
@@ -18,19 +20,13 @@ named!(pub ident<&str, Identifier>, map_res!(
     create_identifier
 ));
 
-named!(pub package_clause<&str, Identifier>, do_parse!(
-    tag!("package") >>
-    package_name: ident >>
+named!(pub package_clause<&str, Identifier>, ws!(do_parse!(
+    tag!("package") >> package_name: ident >> line_sep >>
     (package_name)
-));
+)));
 
-named!(pub line_sep<&str, ()>, do_parse!(
-
-));
-
-named!(pub program<&str, Program>, complete!(do_parse!(
+named!(pub program<&str, Program>, ws!(do_parse!(
     package: package_clause >>
-
     (Program {
         package
     })

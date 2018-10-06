@@ -3,10 +3,9 @@ use rules::program;
 
 #[test]
 fn test() {
-    let input =
-        r"package kek";
+    let input = r"package kek;";
     let expect = Program {
-        package: Identifier("shrek".to_string()),
+        package: Identifier("kek".to_string()),
     };
     let res = program(input);
     assert_eq!(Ok(("", expect)), res);

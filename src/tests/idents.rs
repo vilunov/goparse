@@ -29,3 +29,4 @@ test!(-neg1, "1пр1ивет");
 test!(-neg2, "1");
 test!(-neg3, "");
 test!(-neg4, " 1");
+test!(-neg5, ";");
