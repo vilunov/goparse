@@ -135,6 +135,8 @@ pub enum Token {
     BinOpAssign(BinaryOp),
     /// Other operators, symbols and punctuation
     Punc(Punctuation),
+    #[doc(hidden)]
+    LineBreak,
 }
 
 #[derive(Clone, Debug)]

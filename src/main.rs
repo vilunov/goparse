@@ -2,10 +2,10 @@
 extern crate nom;
 extern crate regex;
 
-mod ast;
-mod lexer;
-mod rules;
-mod types;
+pub mod ast;
+pub mod lexer;
+pub mod rules;
+pub mod types;
 
 fn main() {
     let (res, idents) = lexer::Lexer::new()

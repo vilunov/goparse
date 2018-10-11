@@ -179,6 +179,7 @@ impl<'a> LexerInner<'a> {
                 Some((_, '=')) => consume!(BinOpAssign(Hat)),
                 _ => return Ok(Some(BinOp(Hat))),
             },
+            '\n' => consume!(LineBreak),
             _ => (),
         }
 
@@ -215,5 +216,20 @@ fn is_ident_char(c: char) -> bool {
 }
 
 fn is_whitespace(c: char) -> bool {
-    c.is_whitespace()
+    c.is_whitespace() && c != '\n'
+}
+
+/// Whether the token is automatically followed by an implicit `;`
+/// if it's the last token on the line
+fn implicit_semicolon(t: Token) -> bool {
+    match t {
+        Kw(kw) => {
+            kw == Keyword::Break
+                || kw == Keyword::Continue
+                || kw == Keyword::Fallthrough
+                || kw == Keyword::Return
+        }
+        Ident(_) | Punc(Right(_)) | Punc(Increment) | Punc(Decrement) => true,
+        _ => false,
+    }
 }
