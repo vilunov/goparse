@@ -7,6 +7,6 @@ pub mod integration;
 fn package_clause() {
     use ast::Identifier;
     use rules::package_clause;
-    let out = package_clause("package a");
-    assert_eq!(Ok(("", Identifier("a".to_string()))), out);
+    let out = package_clause("package a;");
+    assert_eq!(Ok((";", Identifier("a".to_string()))), out);
 }

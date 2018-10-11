@@ -1,34 +1,7 @@
+pub use types::Keyword;
 pub mod literals;
 pub mod expr;
 
-#[derive(Eq, PartialEq, Debug, Clone)]
-pub enum Keyword {
-    Break,
-    Case,
-    Chan,
-    Const,
-    Continue,
-    Default,
-    Defer,
-    Else,
-    Fallthrough,
-    For,
-    Func,
-    Go,
-    Goto,
-    If,
-    Import,
-    Interface,
-    Map,
-    Package,
-    Range,
-    Return,
-    Select,
-    Struct,
-    Switch,
-    Type,
-    Var,
-}
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum BinaryOp {

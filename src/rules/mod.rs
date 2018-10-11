@@ -21,13 +21,13 @@ named!(pub ident<&str, Identifier>, map_res!(
 ));
 
 named!(pub package_clause<&str, Identifier>, ws!(do_parse!(
-    tag!("package") >> package_name: ident >> line_sep >>
+    tag!("package") >> package_name: ident >>
     (package_name)
 )));
 
-named!(pub program<&str, Program>, ws!(do_parse!(
-    package: package_clause >>
+named!(pub program<&str, Program>, do_parse!(
+    package: package_clause  >> line_sep >>
     (Program {
         package
     })
-)));
+));
