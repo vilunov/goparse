@@ -18,6 +18,7 @@ macro_rules! test_err {
         fn $name() {
             let to_parse = $input;
             let parsed = literal_parse(to_parse);
+            println!("{:?}", parsed);
             assert!(parsed.is_err())
         }
     };
@@ -70,7 +71,6 @@ test!(string_raw, "`Eto vanya is proshlogo. Nikita ebalnusa`", String);
 test!(string_interpreted, "\"Nikita ne bei za test snizu\"", String);
 test!(string_interpreted_inner, "\"\\\"\"", String);
 
-test_err!(string_interpreted_unescaped, "\"\"\"");
 test_err!(string_interpreted_newline, "\"\n\"");
 #[test]
 fn string_raw_newlines() {

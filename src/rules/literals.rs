@@ -56,12 +56,12 @@ const OCTAL_BYTE_VALUE: &'static str = "\\\\[0-7][0-7][0-7]";
 const HEX_BYTE_VALUE: &'static str = "\\\\x[0-9A-Fa-f][0-9A-Fa-f]";
 const LITTLE_U_VALUE: &'static str = "\\\\u[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]";
 const BIG_U_VALUE: &'static str = "\\\\U[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]\
-                                   [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]";
+                                        [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]";
 
 macro_rules! rune_regexp {
     () => {{
         let unicode_value = format!(
-            r".|{little_u}|{big_u}|{escaped}",
+            r"(\\.|[^'\\])|{little_u}|{big_u}|{escaped}",
             little_u = LITTLE_U_VALUE,
             big_u = BIG_U_VALUE,
             escaped = ESCAPED_CHARS
@@ -86,7 +86,7 @@ const RAW_STRING: &'static str = "`(.|\\n|\\r|\\r\\n)*`";
 macro_rules! string_regexp {
     () => {{
         let unicode_value = format!(
-            r".|{little_u}|{big_u}|{escaped}",
+            r####".|{little_u}|{big_u}|{escaped}"####,
             little_u = LITTLE_U_VALUE,
             big_u = BIG_U_VALUE,
             escaped = ESCAPED_CHARS
@@ -114,7 +114,7 @@ macro_rules! string_regexp {
 
 named!(pub literal_parse<&str, Literal>, alt!(
     re_find!(rune_regexp!().as_str())        => {|x: &str| Literal::Character(x.to_string()) } |
-    re_find!(string_regexp!().as_str())      => {|x: &str| Literal::String(x.replace("\r", "as")) } |
+    re_find!(string_regexp!().as_str())      => {|x: &str| Literal::String(x.replace("\r", "")) } |
     re_find!(imaginary_regexp!().as_str())   => {|x: &str| Literal::Imaginary(x.to_string()) } |
     re_find!(float_regexp!().as_str())       => {|x: &str| Literal::Float(x.to_string()) } |
     re_find!(decimal_regexp!().as_str())     => {|x: &str| Literal::Decimal(x.to_string()) }
