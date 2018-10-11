@@ -1,7 +1,13 @@
 use std::str::CharIndices;
 
-use types::{Error, IdentifierStorage, Keyword, Token};
+use types::BinaryOp::*;
+use types::PairedToken::*;
+use types::Punctuation::*;
+use types::Token::*;
+use types::*;
 
+/// Lexical analyser of Go source code.
+/// Stores information about scanned tokens
 #[derive(Clone, Debug)]
 pub struct Lexer {
     tokens: Vec<Token>,
@@ -31,11 +37,13 @@ impl Lexer {
     }
 }
 
+type Cur = Option<(usize, char)>;
+
 struct LexerInner<'a> {
     input: &'a str,
     idents: &'a mut IdentifierStorage,
     iter: CharIndices<'a>,
-    cur: Option<(usize, char)>,
+    cur: Cur,
 }
 
 impl<'a> LexerInner<'a> {
@@ -52,8 +60,8 @@ impl<'a> LexerInner<'a> {
 
     fn wrap_ident(&mut self, ident: &str) -> Token {
         match Keyword::extract(ident) {
-            Some(kw) => Token::Kw(kw),
-            None => Token::Ident(self.idents.create_identifier(ident)),
+            Some(kw) => Kw(kw),
+            None => Ident(self.idents.create_identifier(ident)),
         }
     }
 
@@ -64,6 +72,13 @@ impl<'a> LexerInner<'a> {
             None => return Ok(None), // end of input
             Some(i) => i,
         };
+
+        macro_rules! consume {
+            ($token: expr) => {{
+                self.adv();
+                return Ok(Some($token));
+            }};
+        }
 
         // # Identifiers and keywords
         if is_ident_start(cur_char) {
@@ -78,12 +93,105 @@ impl<'a> LexerInner<'a> {
             }
             return Ok(Some(self.wrap_ident(&self.input[idx_start..])));
         }
+        // # Operators and punctuation
+        match cur_char {
+            ';' => consume!(Punc(Semicolon)),
+            ':' => match self.next() {
+                Some((_, '=')) => consume!(Punc(ColonAssign)),
+                _ => return Ok(Some(Punc(Colon))),
+            },
+            '.' => match self.next() {
+                Some((_, '.')) => match self.next() {
+                    Some((_, '.')) => consume!(Punc(DotDotDot)),
+                    _ => return Err(Error::TokenizingError),
+                },
+                _ => return Ok(Some(Punc(Dot))),
+            },
+            ',' => consume!(Punc(Comma)),
+            '(' => consume!(Punc(Left(Parenthesis))),
+            ')' => consume!(Punc(Right(Parenthesis))),
+            '[' => consume!(Punc(Left(Bracket))),
+            ']' => consume!(Punc(Right(Bracket))),
+            '{' => consume!(Punc(Left(Brace))),
+            '}' => consume!(Punc(Right(Brace))),
+            '&' => match self.next() {
+                Some((_, '&')) => consume!(Punc(DoubleAnd)),
+                Some((_, '=')) => consume!(BinOpAssign(And)),
+                Some((_, '^')) => match self.next() {
+                    Some((_, '=')) => consume!(BinOpAssign(AndHat)),
+                    _ => return Ok(Some(BinOp(AndHat))),
+                },
+                _ => return Ok(Some(BinOp(And))),
+            },
+            '|' => match self.next() {
+                Some((_, '&')) => consume!(Punc(DoubleOr)),
+                Some((_, '=')) => consume!(BinOpAssign(Or)),
+                _ => return Ok(Some(BinOp(Or))),
+            },
+            '=' => match self.next() {
+                Some((_, '=')) => consume!(Punc(Equals)),
+                _ => return Ok(Some(Punc(Assign))),
+            },
+            '!' => match self.next() {
+                Some((_, '=')) => consume!(Punc(Ne)),
+                _ => return Ok(Some(Punc(Bang))),
+            },
+            '<' => match self.next() {
+                Some((_, '=')) => consume!(Punc(Le)),
+                Some((_, '-')) => consume!(Punc(LeftArrow)),
+                Some((_, '<')) => match self.next() {
+                    Some((_, '=')) => consume!(BinOpAssign(LeftShift)),
+                    _ => return Ok(Some(BinOp(LeftShift))),
+                },
+                _ => return Ok(Some(Punc(Lt))),
+            },
+            '>' => match self.next() {
+                Some((_, '=')) => consume!(Punc(Ge)),
+                Some((_, '>')) => match self.next() {
+                    Some((_, '=')) => consume!(BinOpAssign(RightShift)),
+                    _ => return Ok(Some(BinOp(RightShift))),
+                },
+                _ => return Ok(Some(Punc(Gt))),
+            },
+            '+' => match self.next() {
+                Some((_, '+')) => consume!(Punc(Increment)),
+                Some((_, '=')) => consume!(BinOpAssign(Plus)),
+                _ => return Ok(Some(BinOp(Plus))),
+            },
+            '-' => match self.next() {
+                Some((_, '-')) => consume!(Punc(Decrement)),
+                Some((_, '=')) => consume!(BinOpAssign(Minus)),
+                _ => return Ok(Some(BinOp(Minus))),
+            },
+            '*' => match self.next() {
+                Some((_, '=')) => consume!(BinOpAssign(Multiply)),
+                _ => return Ok(Some(BinOp(Multiply))),
+            },
+            '/' => match self.next() {
+                Some((_, '=')) => consume!(BinOpAssign(Divide)),
+                _ => return Ok(Some(BinOp(Divide))),
+            },
+            '%' => match self.next() {
+                Some((_, '=')) => consume!(BinOpAssign(Modulus)),
+                _ => return Ok(Some(BinOp(Modulus))),
+            },
+            '^' => match self.next() {
+                Some((_, '=')) => consume!(BinOpAssign(Hat)),
+                _ => return Ok(Some(BinOp(Hat))),
+            },
+            _ => (),
+        }
 
         Err(Error::TokenizingError)
     }
 
     fn adv(&mut self) {
         self.cur = self.iter.next();
+    }
+
+    fn next(&mut self) -> Cur {
+        self.adv();
+        self.cur
     }
 
     fn skip_whitespace(&mut self) {

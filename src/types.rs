@@ -41,11 +41,100 @@ impl Keyword {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum BinaryOp {
+    /// `+`
+    Plus,
+    /// `-`
+    Minus,
+    /// `*`
+    Multiply,
+    /// `/`
+    Divide,
+    /// `%`
+    Modulus,
+    /// `&`
+    And,
+    /// `|`
+    Or,
+    /// `^`
+    Hat,
+    /// `<<`
+    LeftShift,
+    /// `>>`
+    RightShift,
+    /// `&^`
+    AndHat,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum PairedToken {
+    /// `(` or `)`
+    Parenthesis,
+    /// `[` or `]`
+    Bracket,
+    /// `{` or `}`
+    Brace,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Punctuation {
+    /// `&&`
+    DoubleAnd,
+    /// `||`
+    DoubleOr,
+    /// `<-`
+    LeftArrow,
+    /// `++`
+    Increment,
+    /// `--`
+    Decrement,
+    /// `==`
+    Equals,
+    /// `<=`
+    Le,
+    /// `<`
+    Lt,
+    /// `>=`
+    Ge,
+    /// `>`
+    Gt,
+    /// `!=`
+    Ne,
+    /// `!`
+    Bang,
+    /// `=`
+    Assign,
+    /// `:=`
+    ColonAssign,
+    /// One of these: `(`, `{`, `[`
+    Left(PairedToken),
+    /// One of these: `)`, `}`, `]`
+    Right(PairedToken),
+    /// `,`
+    Comma,
+    /// `.`
+    Dot,
+    /// `...`
+    DotDotDot,
+    /// `:`
+    Colon,
+    /// `;`
+    Semicolon,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     /// Keyword - cannot be used as an identifier
     Kw(Keyword),
     /// Identifier - name of a variable, structure, function, etc
     Ident(usize),
+    /// Binary operator that could be placed between two values, e.g.: `1 + 2`.
+    /// Does not include `&&` and `||`.
+    BinOp(BinaryOp),
+    /// Binary operator combined with assignment, e.g. `i += 5`
+    BinOpAssign(BinaryOp),
+    /// Other operators, symbols and punctuation
+    Punc(Punctuation),
 }
 
 #[derive(Clone, Debug)]

@@ -1,5 +1,5 @@
 use ast::literals::Literal;
-use ast::BinaryOp;
+use types::BinaryOp;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Expression {

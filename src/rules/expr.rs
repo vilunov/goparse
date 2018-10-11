@@ -1,6 +1,6 @@
 use ast::expr::Expression;
 use ast::literals::Literal;
-use ast::BinaryOp;
+use types::BinaryOp;
 
 named!(pub bin_op<&str, BinaryOp>, alt!(
     tag!("+") =>  { |_| BinaryOp::Plus } |
