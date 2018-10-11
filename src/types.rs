@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Keyword {
     Break,
@@ -31,12 +30,12 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    pub fn extract(ident: String) -> Result<Keyword, String> {
-        match ident.as_str() {
+    pub fn extract(ident: &str) -> Option<Keyword> {
+        match ident {
             // TODO может переписать это дерьмо на макрос?
-            "break" => Ok(Keyword::Break),
-            "package" => Ok(Keyword::Package),
-            _ => Err(ident),
+            "break" => Some(Keyword::Break),
+            "package" => Some(Keyword::Package),
+            _ => None,
         }
     }
 }
@@ -63,17 +62,20 @@ impl IdentifierStorage {
         }
     }
 
-    pub fn create_identifier(&mut self, ident: String) -> usize {
-        return match self.lookup_table.get(&ident) {
+    pub fn create_identifier(&mut self, ident: &str) -> usize {
+        return match self.lookup_table.get(ident) {
             Some(&id) => id,
             None => {
-                self.identifiers.push(ident);
-                self.identifiers.len() - 1
+                self.identifiers.push(ident.to_string());
+                let id = self.identifiers.len() - 1;
+                self.lookup_table.insert(ident.to_string(), id);
+                id
             }
-        }
+        };
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum Error {
     TokenizingError,
 }

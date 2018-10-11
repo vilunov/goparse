@@ -5,7 +5,6 @@ use rules::ident;
 
 const EMPTY: &'static str = "";
 
-
 macro_rules! test {
     (+$name: ident, $input: expr) => {
         #[test]
@@ -20,7 +19,7 @@ macro_rules! test {
             let expect = Identifier($input.to_string());
             assert!(ident($input).is_err())
         }
-    }
+    };
 }
 
 test!(+pos1, "пр1ивет");

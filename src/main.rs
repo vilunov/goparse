@@ -2,15 +2,17 @@
 extern crate nom;
 extern crate regex;
 
-mod rules;
 mod ast;
-mod types;
 mod lexer;
+mod rules;
+mod types;
 
 fn main() {
-    let literal = "\\00";
-
-    println!("{:?}", rules::literals::literal_parse(literal));
+    let (res, idents) = lexer::Lexer::new()
+        .tokenize("privet _kak de_1la break privet")
+        .unwrap()
+        .collect();
+    println!("{:?}\n{:?}", res, idents);
 }
 
 #[cfg(test)]

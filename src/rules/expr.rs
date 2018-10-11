@@ -1,6 +1,6 @@
-use ast::BinaryOp;
-use ast::literals::Literal;
 use ast::expr::Expression;
+use ast::literals::Literal;
+use ast::BinaryOp;
 
 named!(pub bin_op<&str, BinaryOp>, alt!(
     tag!("+") =>  { |_| BinaryOp::Plus } |
@@ -14,7 +14,6 @@ named!(pub bin_op<&str, BinaryOp>, alt!(
     tag!("<<") => { |_| BinaryOp::LeftShift } |
     tag!(">>") => { |_| BinaryOp::RightShift }
 ));
-
 
 named!(pub expr<&str, Expression>, do_parse!(
     // left:  literal_decimal >>

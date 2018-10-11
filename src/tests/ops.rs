@@ -1,6 +1,6 @@
-use ast::BinaryOp;
-use ast::literals::Literal;
 use ast::expr::Expression;
+use ast::literals::Literal;
+use ast::BinaryOp;
 use rules::expr::*;
 
 const EMPTY: &'static str = "";
@@ -19,16 +19,16 @@ macro_rules! test {
             let result = expr(&input);
             assert_eq!(Ok((EMPTY, expect)), result);
         }
-    }
+    };
 }
 
-test!(plus,    "+",  BinaryOp::Plus);
-test!(minus,   "-",  BinaryOp::Minus);
-test!(mult,    "*",  BinaryOp::Multiply);
-test!(div,     "/",  BinaryOp::Divide);
-test!(modulus, "%",  BinaryOp::Modulus);
-test!(and,     "&",  BinaryOp::And);
-test!(or,      "|",  BinaryOp::Or);
-test!(shl,     "<<", BinaryOp::LeftShift);
-test!(shr,     ">>", BinaryOp::RightShift);
-test!(andhat,  "&^", BinaryOp::AndHat);
+test!(plus, "+", BinaryOp::Plus);
+test!(minus, "-", BinaryOp::Minus);
+test!(mult, "*", BinaryOp::Multiply);
+test!(div, "/", BinaryOp::Divide);
+test!(modulus, "%", BinaryOp::Modulus);
+test!(and, "&", BinaryOp::And);
+test!(or, "|", BinaryOp::Or);
+test!(shl, "<<", BinaryOp::LeftShift);
+test!(shr, ">>", BinaryOp::RightShift);
+test!(andhat, "&^", BinaryOp::AndHat);

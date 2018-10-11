@@ -1,7 +1,6 @@
 pub use types::Keyword;
-pub mod literals;
 pub mod expr;
-
+pub mod literals;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum BinaryOp {

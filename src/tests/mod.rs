@@ -1,7 +1,7 @@
-pub mod ops;
-pub mod literals;
 pub mod idents;
 pub mod integration;
+pub mod literals;
+pub mod ops;
 
 #[test]
 fn package_clause() {

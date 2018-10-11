@@ -4,5 +4,5 @@ pub enum Literal {
     Float(String),
     Imaginary(String),
     Character(String),
-    String(String)
+    String(String),
 }

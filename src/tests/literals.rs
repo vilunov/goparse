@@ -9,27 +9,23 @@ macro_rules! test {
             let parsed = literal_parse(to_parse).unwrap().1;
             assert_eq!($expect(to_parse.to_string()), parsed)
         }
-    }
+    };
 }
 
 macro_rules! test_err {
-   ($name: ident, $input: expr) => {
+    ($name: ident, $input: expr) => {
         #[test]
         fn $name() {
             let to_parse = $input;
             let parsed = literal_parse(to_parse);
             assert!(parsed.is_err())
         }
-   }
+    };
 }
 
 // Decimal Literals
 test!(decimal_simple, "1488", Decimal);
-test!(
-    decimal_long,
-    "10000000000000000000000000000020",
-    Decimal
-);
+test!(decimal_long, "10000000000000000000000000000020", Decimal);
 test!(decimal_octal, "0600", Decimal);
 test!(decimal_hex, "0xBadFace", Decimal);
 
@@ -81,7 +77,7 @@ fn string_raw_newlines() {
     let to_parse = "`Here \n \r \r\n`";
     let parsed = match literal_parse(to_parse).unwrap().1 {
         String(x) => x,
-        _ => panic!("Not String")
+        _ => panic!("Not String"),
     };
     assert_eq!(to_parse.replace("\r", ""), parsed)
 }
