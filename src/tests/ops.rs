@@ -1,6 +1,6 @@
 use ast::expr::Expression;
 use ast::literals::Literal;
-use ast::BinaryOp;
+use types::BinaryOp;
 use rules::expr::*;
 
 const EMPTY: &'static str = "";
