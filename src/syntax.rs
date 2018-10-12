@@ -20,13 +20,19 @@ fn token(token: Token, i: &[Token]) -> IResult<&[Token], ()> {
 
 }
 
-fn keyword_package(i: &[Token]) -> IResult<&[Token], ()> {
-    token(Kw(Package), i)
+macro_rules! token {
+    ($name: ident, $val: expr) => {
+        fn $name(i: &[Token]) -> IResult<&[Token], ()> {
+            println!("{:?}", i);
+            token($val, i)
+        }
+    };
 }
 
-fn semicolon(i: &[Token]) -> IResult<&[Token], ()> {
-    token(Punc(Semicolon), i)
-}
+token!(keyword_package, Kw(Package));
+token!(keyword_import, Kw(Import));
+token!(semicolon, Punc(Semicolon));
+token!(dot, Punc(Dot));
 
 fn identifier(tokens: &[Token]) -> IResult<&[Token], usize> {
     if tokens.len() < 1 {
@@ -38,13 +44,33 @@ fn identifier(tokens: &[Token]) -> IResult<&[Token], usize> {
     }
 }
 
+named!(import_spec(&[Token]) -> ImportSpec, do_parse!(
+       package: opt!(alt!(value!(ImportSpecPackage::Dot, dot)
+                        | map!(identifier, |i| ImportSpecPackage::Package(i))))
+    >> path: value!("priv".to_string(), identifier)
 
-named!(pub program<&[Token], Program>, do_parse!(
+    >> (ImportSpec {
+        package, path,
+    })
+));
+
+named!(import_decl(&[Token]) -> Vec<ImportSpec>, do_parse!(
+       keyword_import
+    >> specs: map!(import_spec, |i| vec![i])
+    >> semicolon
+
+    >> (specs)
+));
+
+
+named!(pub program(&[Token]) -> Program, do_parse!(
        keyword_package
     >> package: identifier
     >> semicolon
+    >> imports: map!(many0!(import_decl),
+                     |i: Vec<Vec<ImportSpec>>| i.into_iter().flatten().collect::<Vec<ImportSpec>>())
 
     >> (Program {
-        package,
+        package, imports,
     })
 ));

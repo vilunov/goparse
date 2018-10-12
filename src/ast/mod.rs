@@ -6,16 +6,17 @@ pub mod literals;
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Program {
     pub package: usize,
-    //pub imports: Vec<ImportSpec>,
+    pub imports: Vec<ImportSpec>,
 }
 
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ImportSpecPackage {
-    None,
     Dot,
     Package(usize),
 }
 
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct ImportSpec {
-    package: ImportSpecPackage,
-    path: String,
+    pub package: Option<ImportSpecPackage>,
+    pub path: String,
 }

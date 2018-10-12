@@ -9,7 +9,10 @@ pub mod syntax;
 
 fn main() {
     let (res, idents) = lexer::Lexer::new()
-        .tokenize("package kekistan\n")
+        .tokenize(
+            r"package kekistan
+            import . priv
+            ;")
         .unwrap()
         .collect();
     println!("{:?}\n{:?}", res, idents);

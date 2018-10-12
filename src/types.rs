@@ -34,6 +34,7 @@ impl Keyword {
         match ident {
             // TODO может переписать это дерьмо на макрос?
             "break" => Some(Keyword::Break),
+            "import" => Some(Keyword::Import),
             "package" => Some(Keyword::Package),
             _ => None,
         }
