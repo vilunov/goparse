@@ -122,7 +122,7 @@ pub enum Punctuation {
     Semicolon,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     /// Keyword - cannot be used as an identifier
     Kw(Keyword),
@@ -135,6 +135,12 @@ pub enum Token {
     BinOpAssign(BinaryOp),
     /// Other operators, symbols and punctuation
     Punc(Punctuation),
+    /// Decimal integer literal, i.e. `1972`
+    Decimal(String),
+    /// Octal integer literal, i.e. `031337`
+    Octal(String),
+    /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
+    Hex(String),
     #[doc(hidden)]
     LineBreak,
 }

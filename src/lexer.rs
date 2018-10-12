@@ -26,7 +26,16 @@ impl Lexer {
         {
             let mut inner = LexerInner::new(input, &mut self.idents);
             while let Some(token) = inner.next_token()? {
-                self.tokens.push(token);
+                if token == LineBreak {
+                    if self.tokens.last()
+                        .filter(|&i| implicit_semicolon(i))
+                        .is_some()
+                    {
+                        self.tokens.push(Punc(Semicolon))
+                    }
+                } else {
+                    self.tokens.push(token);
+                }
             }
         }
         Ok(self)
@@ -82,17 +91,13 @@ impl<'a> LexerInner<'a> {
 
         // # Identifiers and keywords
         if is_ident_start(cur_char) {
-            self.adv();
-            while let Some((idx, cur)) = self.cur {
-                if is_whitespace(cur) {
-                    return Ok(Some(self.wrap_ident(&self.input[idx_start..idx])));
-                } else if !is_ident_char(cur) {
-                    return Err(Error::TokenizingError);
-                }
-                self.adv();
+            self.skip_chars(is_ident_char);
+            if let Some((idx, cur)) = self.cur {
+                return Ok(Some(self.wrap_ident(&self.input[idx_start..idx])));
             }
             return Ok(Some(self.wrap_ident(&self.input[idx_start..])));
         }
+
         // # Operators and punctuation
         match cur_char {
             ';' => consume!(Punc(Semicolon)),
@@ -180,10 +185,39 @@ impl<'a> LexerInner<'a> {
                 _ => return Ok(Some(BinOp(Hat))),
             },
             '\n' => consume!(LineBreak),
-            _ => (),
+            _ => {}
         }
 
-        Err(Error::TokenizingError)
+        // # Integer literals
+        if let '1'..='9' = cur_char {
+            self.skip_chars(|i| i >= '0' && i <= '9');
+            if let Some((idx, _)) = self.cur {
+                return Ok(Some(Decimal(self.input[idx_start..idx].to_string())));
+            }
+            return Ok(Some(Decimal(self.input[idx_start..].to_string())));
+        }
+        if '0' == cur_char {
+            self.adv();
+            match self.cur {
+                Some((_, 'x')) | Some((_, 'X')) => {
+                    self.adv();
+                    self.skip_chars(is_hex_digit);
+                    if let Some((idx, _)) = self.cur {
+                        return Ok(Some(Hex(self.input[idx_start + 2..idx].to_string())));
+                    }
+                    return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
+                }
+                _ => {
+                    self.skip_chars(|i| i >= '0' && i <= '7');
+                    if let Some((idx, _)) = self.cur {
+                        return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string())));
+                    }
+                    return Ok(Some(Octal(self.input[idx_start + 1..].to_string())));
+                }
+            }
+        }
+
+        Err(Error::TokenizingError) // unknown character
     }
 
     fn adv(&mut self) {
@@ -196,8 +230,15 @@ impl<'a> LexerInner<'a> {
     }
 
     fn skip_whitespace(&mut self) {
+        self.skip_chars(is_whitespace);
+    }
+
+    fn skip_chars<F>(&mut self, mut predicate: F)
+    where
+        F: FnMut(char) -> bool,
+    {
         while let Some((_, c)) = self.cur {
-            if !is_whitespace(c) {
+            if !predicate(c) {
                 break;
             }
             self.adv();
@@ -219,10 +260,14 @@ fn is_whitespace(c: char) -> bool {
     c.is_whitespace() && c != '\n'
 }
 
+fn is_hex_digit(c: char) -> bool {
+    (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
+}
+
 /// Whether the token is automatically followed by an implicit `;`
 /// if it's the last token on the line
-fn implicit_semicolon(t: Token) -> bool {
-    match t {
+fn implicit_semicolon(t: &Token) -> bool {
+    match *t {
         Kw(kw) => {
             kw == Keyword::Break
                 || kw == Keyword::Continue

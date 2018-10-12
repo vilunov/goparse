@@ -9,10 +9,11 @@ pub mod types;
 
 fn main() {
     let (res, idents) = lexer::Lexer::new()
-        .tokenize("privet _kak de_1la break privet")
+        .tokenize("privet _kak de_1la break privet 12 0x12F+=0")
         .unwrap()
         .collect();
     println!("{:?}\n{:?}", res, idents);
+    println!("{}", std::mem::size_of::<String>());
 }
 
 #[cfg(test)]
