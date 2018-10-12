@@ -141,8 +141,9 @@ pub enum Token {
     Octal(String),
     /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
     Hex(String),
-    #[doc(hidden)]
-    LineBreak,
+    /// Rune (Character) literal
+    Rune(char),
+    #[doc(hidden)] LineBreak,
 }
 
 #[derive(Clone, Debug)]

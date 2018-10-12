@@ -67,8 +67,16 @@ test_err!(char_few_octal, "'\\0'");
 //test_err!(char_invalid_unicode, "'\\U00110000'", literal_char);
 
 // String Literals
-test!(string_raw, "`Eto vanya is proshlogo. Nikita ebalnusa`", String);
-test!(string_interpreted, "\"Nikita ne bei za test snizu\"", String);
+test!(
+    string_raw,
+    "`Eto vanya is proshlogo. Nikita ebalnusa`",
+    String
+);
+test!(
+    string_interpreted,
+    "\"Nikita ne bei za test snizu\"",
+    String
+);
 test!(string_interpreted_inner, "\"\\\"\"", String);
 
 test_err!(string_interpreted_newline, "\"\n\"");

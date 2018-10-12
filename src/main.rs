@@ -17,3 +17,5 @@ fn main() {
     println!("{:?}", program);
 }
 
+#[cfg(test)]
+mod tests;

@@ -1,10 +1,11 @@
 use std::str::CharIndices;
-
+use std::str::FromStr;
+use std::char::from_u32;
+use types::*;
 use types::BinaryOp::*;
 use types::PairedToken::*;
 use types::Punctuation::*;
 use types::Token::*;
-use types::*;
 
 /// Lexical analyser of Go source code.
 /// Stores information about scanned tokens
@@ -27,7 +28,8 @@ impl Lexer {
             let mut inner = LexerInner::new(input, &mut self.idents);
             while let Some(token) = inner.next_token()? {
                 if token == LineBreak {
-                    if self.tokens.last()
+                    if self.tokens
+                        .last()
                         .filter(|&i| implicit_semicolon(i))
                         .is_some()
                     {
@@ -74,6 +76,30 @@ impl<'a> LexerInner<'a> {
         }
     }
 
+    // # Rune Literal Help routines
+    fn process_end_rune(&mut self, x: char) -> Result<Option<Token>, Error> {
+        match self.next() {
+            Some((_, '\'')) => {
+                self.adv();
+                Ok(Some(Rune(x)))
+            }
+            _ => Err(Error::TokenizingError),
+        }
+    }
+
+    fn process_octal_rune(&mut self, a: char) -> Result<Option<Token>, Error> {
+        match self.next() {
+            Some((_, b)) if is_octal_digit(b) => match self.next() {
+                Some((_, c)) if is_octal_digit(c) => match convert_octal(a, b, c) {
+                    Some(res) => self.process_end_rune(res),
+                    _ => Err(Error::TokenizingError)
+                },
+                _ => Err(Error::TokenizingError),
+            },
+            _ => Err(Error::TokenizingError),
+        }
+    }
+
     fn next_token(&mut self) -> Result<Option<Token>, Error> {
         self.skip_whitespace();
 
@@ -96,6 +122,38 @@ impl<'a> LexerInner<'a> {
                 return Ok(Some(self.wrap_ident(&self.input[idx_start..idx])));
             }
             return Ok(Some(self.wrap_ident(&self.input[idx_start..])));
+        }
+
+        // # Rune Literal
+        match cur_char {
+            '\'' => match self.next() {
+                Some((_, '\\')) => match self.next() {
+                    Some((_, x)) if is_rune_escaped(x) => return self.process_end_rune(x),
+                    Some((_, x)) if is_octal_digit(x) => return self.process_octal_rune(x),
+                    Some((idx_u, 'u')) => {
+                        let idx = self.get_next_chars(4, &is_hex_digit)?;
+                        return match char::from_str(&("\\u{".to_string() + &self.input[idx_u + 1..idx] + "}")) {
+                            Ok(res) => self.process_end_rune(res),
+                            _ => Err(Error::TokenizingError)
+                        }
+                    },
+                    Some((idx_u_big, 'U')) => {
+                        let idx = self.get_next_chars(8, &is_hex_digit)?;
+                        if &self.input[idx_u_big + 1..=idx_u_big + 2] != "00" {
+                            return Err(Error::TokenizingError)
+                        }
+                        return match char::from_str(&("\\u{".to_string() + &self.input[idx_u_big + 3..idx] + "}")) {
+                            Ok(res) => self.process_end_rune(res),
+                            _ => Err(Error::TokenizingError)
+                        }
+                    },
+                    _ => return Err(Error::TokenizingError),
+                },
+                Some((_, '\0')) => return self.process_octal_rune('0'),
+                Some((_, x)) => return self.process_end_rune(x),
+                _ => return Err(Error::TokenizingError)
+            },
+            _ => ()
         }
 
         // # Operators and punctuation
@@ -208,7 +266,7 @@ impl<'a> LexerInner<'a> {
                     return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
                 }
                 _ => {
-                    self.skip_chars(|i| i >= '0' && i <= '7');
+                    self.skip_chars(is_octal_digit);
                     if let Some((idx, _)) = self.cur {
                         return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string())));
                     }
@@ -233,9 +291,31 @@ impl<'a> LexerInner<'a> {
         self.skip_chars(is_whitespace);
     }
 
-    fn skip_chars<F>(&mut self, mut predicate: F)
+    fn get_char<F>(&mut self, predicate: &F) -> Result<usize, Error>
     where
-        F: FnMut(char) -> bool,
+        F: Fn(char) -> bool,
+    {
+        match self.next() {
+            Some((idx, x)) if predicate(x) => Ok(idx),
+            _ => Err(Error::TokenizingError),
+        }
+    }
+
+    fn get_next_chars<F>(&mut self, n: usize, predicate: &F) -> Result<usize, Error>
+    where
+        F: Fn(char) -> bool,
+    {
+        for _ in 0..n-1 {
+            if self.get_char(predicate).is_err() {
+                return Err(Error::TokenizingError)
+            }
+        }
+        self.get_char(predicate)
+    }
+
+    fn skip_chars<F>(&mut self, predicate: F)
+    where
+        F: Fn(char) -> bool,
     {
         while let Some((_, c)) = self.cur {
             if !predicate(c) {
@@ -243,6 +323,13 @@ impl<'a> LexerInner<'a> {
             }
             self.adv();
         }
+    }
+}
+
+fn convert_octal(a: char, b: char, c: char) -> Option<char> {
+    match (a.to_digit(8), b.to_digit(8), c.to_digit(8)) {
+        (Some(x), Some(y), Some(z)) => from_u32(x + y + z),
+        _ => None
     }
 }
 
@@ -264,14 +351,29 @@ fn is_hex_digit(c: char) -> bool {
     (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 }
 
+fn is_octal_digit(c: char) -> bool {
+    (c >= '0' && c <= '7')
+}
+
+fn is_escaped(c: char) -> bool {
+    (c == 'a') || (c == 'b') || (c == 'f') || (c == 'n') || (c == 'r') || (c == 't') || (c == 't')
+        || (c == 'v') || (c == '\\')
+}
+
+fn is_rune_escaped(c: char) -> bool {
+    is_escaped(c) || (c == '\'')
+}
+
+fn is_string_escaped(c: char) -> bool {
+    is_escaped(c) || (c == '\"')
+}
+
 /// Whether the token is automatically followed by an implicit `;`
 /// if it's the last token on the line
 fn implicit_semicolon(t: &Token) -> bool {
     match *t {
         Kw(kw) => {
-            kw == Keyword::Break
-                || kw == Keyword::Continue
-                || kw == Keyword::Fallthrough
+            kw == Keyword::Break || kw == Keyword::Continue || kw == Keyword::Fallthrough
                 || kw == Keyword::Return
         }
         Ident(_) | Punc(Right(_)) | Punc(Increment) | Punc(Decrement) => true,

@@ -56,7 +56,7 @@ const OCTAL_BYTE_VALUE: &'static str = "\\\\[0-7][0-7][0-7]";
 const HEX_BYTE_VALUE: &'static str = "\\\\x[0-9A-Fa-f][0-9A-Fa-f]";
 const LITTLE_U_VALUE: &'static str = "\\\\u[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]";
 const BIG_U_VALUE: &'static str = "\\\\U[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]\
-                                        [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]";
+                                   [0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]";
 
 macro_rules! rune_regexp {
     () => {{
