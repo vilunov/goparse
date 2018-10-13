@@ -447,6 +447,7 @@ fn implicit_semicolon(t: &Token) -> bool {
                 || kw == Keyword::Return
         }
         Ident(_) | Punc(Right(_)) | Punc(Increment) | Punc(Decrement) => true,
+        InterpretedString(_) => true,
         _ => false,
     }
 }

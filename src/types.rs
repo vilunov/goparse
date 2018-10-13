@@ -152,7 +152,7 @@ pub enum Token {
     LineBreak,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct IdentifierStorage {
     identifiers: Vec<String>,
     lookup_table: HashMap<String, usize>,
@@ -177,9 +177,13 @@ impl IdentifierStorage {
             }
         };
     }
+
+    pub fn identifiers(self) -> Vec<String> {
+        self.identifiers
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct StringLiteralsStorage {
     pub interpreted_strings: Vec<String>,
 }
@@ -194,6 +198,10 @@ impl StringLiteralsStorage {
     pub fn create_interpreted_string(&mut self, string: &str) -> usize {
         self.interpreted_strings.push(string.to_string());
         self.interpreted_strings.len() - 1
+    }
+
+    pub fn literals(self) -> Vec<String> {
+        self.interpreted_strings
     }
 }
 
