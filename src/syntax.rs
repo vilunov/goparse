@@ -1,9 +1,9 @@
 use nom::IResult;
-use nom::{need_more, Needed, Err as ParseError, Context, ErrorKind};
+use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
 
 use ast::*;
-use types::Keyword::*;
 use types::BinaryOp::*;
+use types::Keyword::*;
 use types::PairedToken::*;
 use types::Punctuation::*;
 use types::Token::*;
@@ -17,7 +17,6 @@ fn token(token: Token, i: &[Token]) -> IResult<&[Token], ()> {
     } else {
         Ok((&i[1..], ()))
     }
-
 }
 
 macro_rules! token {
@@ -61,7 +60,6 @@ named!(import_decl(&[Token]) -> Vec<ImportSpec>, do_parse!(
 
     >> (specs)
 ));
-
 
 named!(pub program(&[Token]) -> Program, do_parse!(
        keyword_package

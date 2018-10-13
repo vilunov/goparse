@@ -144,7 +144,8 @@ pub enum Token {
     Hex(String),
     /// Rune (Character) literal
     Rune(char),
-    #[doc(hidden)] LineBreak,
+    #[doc(hidden)]
+    LineBreak,
 }
 
 #[derive(Clone, Debug)]

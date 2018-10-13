@@ -4,16 +4,16 @@ extern crate regex;
 
 pub mod ast;
 pub mod lexer;
-pub mod types;
 pub mod syntax;
+pub mod types;
 
 fn main() {
     let (res, idents) = lexer::Lexer::new()
         .tokenize(
             r"package kekistan
             import . priv
-            ;")
-        .unwrap()
+            ;",
+        ).unwrap()
         .collect();
     println!("{:?}\n{:?}", res, idents);
     let program = syntax::program(&res[..]).unwrap();
