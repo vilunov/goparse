@@ -142,6 +142,8 @@ pub enum Token {
     Octal(String),
     /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
     Hex(String),
+    /// Float literal, i.e. '0.5'
+    Float(String),
     /// Rune (Character) literal
     Rune(char),
     /// Interpreted String,

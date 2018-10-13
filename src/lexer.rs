@@ -140,6 +140,48 @@ impl<'a> LexerInner<'a> {
         }
     }
 
+    // # Integer Literals
+
+    fn process_decimals(&mut self) -> usize {
+        self.skip_chars(is_decimal_digit);
+        match self.cur {
+            Some((idx, _)) => idx,
+            None => self.input.len(),
+        }
+    }
+
+    fn process_exponent(&mut self) -> Result<usize, Error> {
+        match self.next() {
+            Some((_, '+')) | Some((_, '-')) => match self.next() {
+                Some((_, x)) if is_decimal_digit(x) => Ok(self.process_decimals()),
+                _ => Err(Error::TokenizingError),
+            },
+            Some((_, x)) if is_decimal_digit(x) => Ok(self.process_decimals()),
+            _ => Err(Error::TokenizingError),
+        }
+    }
+
+    fn process_after_dot(&mut self, idx_start: usize) -> Result<Option<Token>, Error> {
+        match self.next() {
+            Some((_, x)) if is_decimal_digit(x) => {
+                let idx = self.process_decimals();
+                match self.cur {
+                    Some((_, 'e')) | Some((_, 'E')) => {
+                        let idx = self.process_exponent()?;
+                        Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                    },
+                    _ => Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                }
+            },
+            Some((_, 'e')) | Some((_, 'E')) => {
+                let idx = self.process_exponent()?;
+                Ok(Some(Float(self.input[idx_start..idx].to_string())))
+            },
+            Some((idx, _)) => Ok(Some(Float(self.input[idx_start..idx].to_string()))),
+            _ => Ok(Some(Float(self.input[idx_start..].to_string()))),
+        }
+    }
+
     fn next_token(&mut self) -> Result<Option<Token>, Error> {
         self.skip_whitespace();
 
@@ -184,7 +226,7 @@ impl<'a> LexerInner<'a> {
                     match self.process_unicode_value(&is_string_escaped) {
                         Ok(c) => string.push(c),
                         Err(Error::LiteralEnd) => {
-                            return consume!(InterpretedString(
+                            consume!(InterpretedString(
                                 self.strings.create_interpreted_string(&string)
                             ))
                         }
@@ -197,7 +239,7 @@ impl<'a> LexerInner<'a> {
                 loop {
                     match self.next() {
                         Some((_, '`')) => {
-                            return consume!(RawString(
+                            consume!(RawString(
                                 self.strings.create_interpreted_string(&string)
                             ))
                         }
@@ -209,6 +251,45 @@ impl<'a> LexerInner<'a> {
             _ => (),
         }
 
+        // # Number Literals
+
+        match cur_char {
+            '1'..='9' => {
+                self.adv();
+                let idx = self.process_decimals();
+                match self.cur {
+                    Some((_, '.')) => return self.process_after_dot(idx_start),
+                    Some((_, 'e')) | Some((_, 'E')) => {
+                        let idx = self.process_exponent()?;
+                        return Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                    }
+                    _ => return Ok(Some(Decimal(self.input[idx_start..idx].to_string())))
+                }
+            }
+            '0' => {
+                match self.next() {
+                    Some((_, 'x')) | Some((_, 'X')) => {
+                        self.adv();
+                        self.skip_chars(is_hex_digit);
+                        if let Some((idx, _)) = self.cur {
+                            return Ok(Some(Hex(self.input[idx_start + 2..idx].to_string())));
+                        }
+                        return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
+                    },
+                    Some((_, '.')) => return self.process_after_dot(idx_start),
+                    _ => {
+                        self.skip_chars(is_octal_digit);
+                        match self.cur {
+                            Some((_, '.')) => return self.process_after_dot(idx_start),
+                            Some((idx, _)) => return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string()))),
+                            _ => return Ok(Some(Octal(self.input[idx_start + 1..].to_string()))),
+                        }
+                    }
+                }
+            }
+            _ => ()
+        }
+
         // # Operators and punctuation
         match cur_char {
             ';' => consume!(Punc(Semicolon)),
@@ -217,6 +298,16 @@ impl<'a> LexerInner<'a> {
                 _ => return Ok(Some(Punc(Colon))),
             },
             '.' => match self.next() {
+                Some((_, x)) if is_decimal_digit(x) => {
+                    let idx = self.process_decimals();
+                    match self.cur {
+                        Some((_, 'e')) | Some((_, 'E')) => {
+                            let idx = self.process_exponent()?;
+                            return Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                        },
+                        _ => return Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                    }
+                },
                 Some((_, '.')) => match self.next() {
                     Some((_, '.')) => consume!(Punc(DotDotDot)),
                     _ => return Err(Error::TokenizingError),
@@ -299,35 +390,6 @@ impl<'a> LexerInner<'a> {
             _ => {}
         }
 
-        // # Integer literals
-        if let '1'..='9' = cur_char {
-            self.skip_chars(|i| i >= '0' && i <= '9');
-            if let Some((idx, _)) = self.cur {
-                return Ok(Some(Decimal(self.input[idx_start..idx].to_string())));
-            }
-            return Ok(Some(Decimal(self.input[idx_start..].to_string())));
-        }
-        if '0' == cur_char {
-            self.adv();
-            match self.cur {
-                Some((_, 'x')) | Some((_, 'X')) => {
-                    self.adv();
-                    self.skip_chars(is_hex_digit);
-                    if let Some((idx, _)) = self.cur {
-                        return Ok(Some(Hex(self.input[idx_start + 2..idx].to_string())));
-                    }
-                    return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
-                }
-                _ => {
-                    self.skip_chars(is_octal_digit);
-                    if let Some((idx, _)) = self.cur {
-                        return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string())));
-                    }
-                    return Ok(Some(Octal(self.input[idx_start + 1..].to_string())));
-                }
-            }
-        }
-
         Err(Error::TokenizingError) // unknown character
     }
 
@@ -391,6 +453,10 @@ fn is_ident_char(c: char) -> bool {
 
 fn is_whitespace(c: char) -> bool {
     c.is_whitespace() && c != '\n'
+}
+
+fn is_decimal_digit(c: char) -> bool {
+    (c >= '0' && c <= '9')
 }
 
 fn is_hex_digit(c: char) -> bool {

@@ -37,7 +37,11 @@ fn main() {
     let idents = idents.identifiers();
     let string_literals = string_literals.literals();
     let (_, ast) = syntax::program(&res[..]).unwrap();
-    let j = CompleteOutput { ast, idents, string_literals };
+    let j = CompleteOutput {
+        ast,
+        idents,
+        string_literals,
+    };
     let i = serde_json::to_string_pretty(&j).unwrap();
     write(OUTPUT, i).unwrap();
 }
