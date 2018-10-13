@@ -124,12 +124,6 @@ pub enum Punctuation {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Character {
-    Regular(char),
-    Escaped(char),
-}
-
-#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     /// Keyword - cannot be used as an identifier
     Kw(Keyword),
@@ -149,7 +143,9 @@ pub enum Token {
     /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
     Hex(String),
     /// Rune (Character) literal
-    Rune(Character),
+    Rune(char),
+    /// Interpreted String,
+    InterpretedString(usize),
     #[doc(hidden)]
     LineBreak,
 }
@@ -182,6 +178,25 @@ impl IdentifierStorage {
 }
 
 #[derive(Clone, Debug)]
+pub struct StringLiteralsStorage {
+    pub interpreted_strings: Vec<Vec<char>>,
+}
+
+impl StringLiteralsStorage {
+    pub fn new() -> Self {
+        StringLiteralsStorage {
+            interpreted_strings: vec![],
+        }
+    }
+
+    pub fn create_interpreted_string(&mut self, string: &Vec<char>) -> usize {
+        self.interpreted_strings.push(string.to_owned());
+        self.interpreted_strings.len() - 1
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Error {
     TokenizingError,
+    LiteralEnd,
 }

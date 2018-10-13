@@ -13,6 +13,7 @@ use types::*;
 pub struct Lexer {
     tokens: Vec<Token>,
     idents: IdentifierStorage,
+    strings: StringLiteralsStorage,
 }
 
 impl Lexer {
@@ -20,12 +21,13 @@ impl Lexer {
         Lexer {
             tokens: vec![],
             idents: IdentifierStorage::new(),
+            strings: StringLiteralsStorage::new(),
         }
     }
 
     pub fn tokenize(mut self, input: &str) -> Result<Self, Error> {
         {
-            let mut inner = LexerInner::new(input, &mut self.idents);
+            let mut inner = LexerInner::new(input, &mut self.idents, &mut self.strings);
             while let Some(token) = inner.next_token()? {
                 if token == LineBreak {
                     if self
@@ -44,8 +46,8 @@ impl Lexer {
         Ok(self)
     }
 
-    pub fn collect(self) -> (Vec<Token>, IdentifierStorage) {
-        (self.tokens, self.idents)
+    pub fn collect(self) -> (Vec<Token>, IdentifierStorage, StringLiteralsStorage) {
+        (self.tokens, self.idents, self.strings)
     }
 }
 
@@ -54,17 +56,23 @@ type Cur = Option<(usize, char)>;
 struct LexerInner<'a> {
     input: &'a str,
     idents: &'a mut IdentifierStorage,
+    strings: &'a mut StringLiteralsStorage,
     iter: CharIndices<'a>,
     cur: Cur,
 }
 
 impl<'a> LexerInner<'a> {
-    fn new(input: &'a str, idents: &'a mut IdentifierStorage) -> Self {
+    fn new(
+        input: &'a str,
+        idents: &'a mut IdentifierStorage,
+        strings: &'a mut StringLiteralsStorage,
+    ) -> Self {
         let mut iter = input.char_indices();
         let cur = iter.next();
         Self {
             input,
             idents,
+            strings,
             iter,
             cur,
         }
@@ -78,7 +86,7 @@ impl<'a> LexerInner<'a> {
     }
 
     // # Rune Literal Help routines
-    fn process_end_rune(&mut self, x: Character) -> Result<Option<Token>, Error> {
+    fn process_end_rune(&mut self, x: char) -> Result<Option<Token>, Error> {
         match self.next() {
             Some((_, '\'')) => {
                 self.adv();
@@ -88,12 +96,46 @@ impl<'a> LexerInner<'a> {
         }
     }
 
-    fn process_char_bytes(&mut self, x: &str, base: u32) -> Result<Option<Token>, Error> {
+    fn process_char_bytes(&mut self, x: &str, base: u32) -> Result<char, Error> {
         match u32::from_str_radix(x, base) {
             Ok(res) => match from_u32(res) {
-                Some(c) => self.process_end_rune(Character::Regular(c)),
+                Some(c) => Ok(c),
                 _ => Err(Error::TokenizingError),
             },
+            _ => Err(Error::TokenizingError),
+        }
+    }
+
+    fn process_unicode_value<F>(&mut self, predicate: &F) -> Result<char, Error>
+    where
+        F: Fn(char) -> bool,
+    {
+        match self.next() {
+            Some((_, '\\')) => match self.next() {
+                Some((_, x)) if is_escaped(x) || predicate(x) => map_escaped(x),
+                Some((idx_oct, x)) if is_octal_digit(x) => {
+                    let idx = self.get_next_chars(2, &is_octal_digit)?;
+                    self.process_char_bytes(&self.input[idx_oct..=idx], 8)
+                }
+                Some((idx_hex, 'x')) => {
+                    let idx = self.get_next_chars(2, &is_hex_digit)?;
+                    self.process_char_bytes(&self.input[idx_hex + 1..=idx], 16)
+                }
+                Some((idx_u, 'u')) => {
+                    let idx = self.get_next_chars(4, &is_hex_digit)?;
+                    self.process_char_bytes(&self.input[idx_u + 1..=idx], 16)
+                }
+                Some((idx_u_big, 'U')) => {
+                    let idx = self.get_next_chars(8, &is_hex_digit)?;
+                    if &self.input[idx_u_big + 1..=idx_u_big + 2] != "00" {
+                        return Err(Error::TokenizingError);
+                    }
+                    self.process_char_bytes(&self.input[idx_u_big + 3..=idx], 16)
+                }
+                _ => return Err(Error::TokenizingError),
+            },
+            Some((_, x)) if !predicate(x) => Ok(x),
+            Some((_, x)) if predicate(x) => Err(Error::LiteralEnd),
             _ => Err(Error::TokenizingError),
         }
     }
@@ -124,35 +166,32 @@ impl<'a> LexerInner<'a> {
 
         // # Rune Literal
         match cur_char {
-            '\'' => match self.next() {
-                Some((_, '\\')) => match self.next() {
-                    Some((_, x)) if is_rune_escaped(x) => {
-                        return self.process_end_rune(Character::Escaped(x))
-                    }
-                    Some((idx_oct, x)) if is_octal_digit(x) => {
-                        let idx = self.get_next_chars(2, &is_octal_digit)?;
-                        return self.process_char_bytes(&self.input[idx_oct..=idx], 8);
-                    }
-                    Some((idx_hex, 'x')) => {
-                        let idx = self.get_next_chars(2, &is_hex_digit)?;
-                        return self.process_char_bytes(&self.input[idx_hex + 1..=idx], 16);
-                    }
-                    Some((idx_u, 'u')) => {
-                        let idx = self.get_next_chars(4, &is_hex_digit)?;
-                        return self.process_char_bytes(&self.input[idx_u + 1..=idx], 16);
-                    }
-                    Some((idx_u_big, 'U')) => {
-                        let idx = self.get_next_chars(8, &is_hex_digit)?;
-                        if &self.input[idx_u_big + 1..=idx_u_big + 2] != "00" {
-                            return Err(Error::TokenizingError);
+            '\'' => {
+                return match self.process_unicode_value(&is_rune_escaped) {
+                    Ok(c) => self.process_end_rune(c),
+                    _ => Err(Error::TokenizingError),
+                }
+            }
+            _ => (),
+        }
+
+        // # String Literal
+
+        match cur_char {
+            '\"' => {
+                let mut string: Vec<char> = Vec::new();
+                loop {
+                    match self.process_unicode_value(&is_string_escaped) {
+                        Ok(c) => string.push(c),
+                        Err(Error::LiteralEnd) => {
+                            return consume!(InterpretedString(
+                                self.strings.create_interpreted_string(&string)
+                            ));
                         }
-                        return self.process_char_bytes(&self.input[idx_u_big + 3..=idx], 16);
+                        _ => return Err(Error::TokenizingError),
                     }
-                    _ => return Err(Error::TokenizingError),
-                },
-                Some((_, x)) => return self.process_end_rune(Character::Regular(x)),
-                _ => return Err(Error::TokenizingError),
-            },
+                }
+            }
             _ => (),
         }
 
@@ -326,13 +365,6 @@ impl<'a> LexerInner<'a> {
     }
 }
 
-fn convert_octal(a: char, b: char, c: char) -> Option<char> {
-    match (a.to_digit(8), b.to_digit(8), c.to_digit(8)) {
-        (Some(x), Some(y), Some(z)) => from_u32(x + y + z),
-        _ => None,
-    }
-}
-
 // Helper predicates
 
 fn is_ident_start(c: char) -> bool {
@@ -362,17 +394,32 @@ fn is_escaped(c: char) -> bool {
         || (c == 'n')
         || (c == 'r')
         || (c == 't')
-        || (c == 't')
         || (c == 'v')
         || (c == '\\')
 }
 
 fn is_rune_escaped(c: char) -> bool {
-    is_escaped(c) || (c == '\'')
+    c == '\''
 }
 
 fn is_string_escaped(c: char) -> bool {
-    is_escaped(c) || (c == '\"')
+    c == '\"'
+}
+
+fn map_escaped(c: char) -> Result<char, Error> {
+    match c {
+        'a' => Ok('\u{0007}'),
+        'b' => Ok('\u{0008}'),
+        'f' => Ok('\u{000C}'),
+        'n' => Ok('\u{000A}'),
+        'r' => Ok('\u{000D}'),
+        't' => Ok('\u{0009}'),
+        'v' => Ok('\u{000B}'),
+        '\\' => Ok('\u{005C}'),
+        '\'' => Ok('\u{0027}'),
+        '\"' => Ok('\u{0022}'),
+        _ => Err(Error::TokenizingError),
+    }
 }
 
 /// Whether the token is automatically followed by an implicit `;`

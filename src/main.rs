@@ -8,7 +8,7 @@ pub mod syntax;
 pub mod types;
 
 fn main() {
-    let (res, idents) = lexer::Lexer::new()
+    let (res, idents, literals) = lexer::Lexer::new()
         .tokenize(
             r"package kekistan
             import . priv
