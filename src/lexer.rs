@@ -179,7 +179,7 @@ impl<'a> LexerInner<'a> {
 
         match cur_char {
             '\"' => {
-                let mut string: Vec<char> = Vec::new();
+                let mut string = String::new();
                 loop {
                     match self.process_unicode_value(&is_string_escaped) {
                         Ok(c) => string.push(c),
@@ -191,6 +191,9 @@ impl<'a> LexerInner<'a> {
                         _ => return Err(Error::TokenizingError),
                     }
                 }
+            }
+            '`' => {
+                
             }
             _ => (),
         }

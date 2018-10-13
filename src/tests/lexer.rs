@@ -20,10 +20,9 @@ macro_rules! test_literal {
                 InterpretedString(idx) => {
                     let result = &literals.interpreted_strings[idx];
                     assert_eq!(result.clone(), $expected);
-                },
-                _ => panic!("Failed")
+                }
+                _ => panic!("Failed"),
             };
-
         }
     };
 }
@@ -63,13 +62,26 @@ test_ne!(rune_not_valid_hex, r"'\xa'");
 test_ne!(rune_not_valid_single_quote, r"'''");
 
 // # String Literals
-test_literal!(
-    string_interpreted_simple_1,
-    r####""kek""####,
-    vec!['k', 'e', 'k']
-);
+
+// # Positive Tests
+test_literal!(string_interpreted_simple_1, r####""kek""####, "kek");
 test_literal!(
     string_interpreted_simple_2,
     r####""privet kek""####,
-    vec!['p', 'r', 'i', 'v', 'e', 't', ' ', 'k', 'e', 'k']
+    "privet kek"
 );
+test_literal!(
+    string_interpreted_escaped_quotes_1,
+    r####""privet \"kek\"""####,
+    "privet \"kek\""
+);
+test_literal!(
+    string_interpreted_escaped_quotes_2,
+    r####""privet \\\"kek\\\"""####,
+    "privet \\\"kek\\\""
+);
+
+// # Negative Tests
+test_ne!(string_interpreted_unescaped, r####""privet " kek""####);
+test_ne!(string_interpreted_unclosed, r####""privet"####);
+

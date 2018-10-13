@@ -179,7 +179,7 @@ impl IdentifierStorage {
 
 #[derive(Clone, Debug)]
 pub struct StringLiteralsStorage {
-    pub interpreted_strings: Vec<Vec<char>>,
+    pub interpreted_strings: Vec<String>,
 }
 
 impl StringLiteralsStorage {
@@ -189,8 +189,8 @@ impl StringLiteralsStorage {
         }
     }
 
-    pub fn create_interpreted_string(&mut self, string: &Vec<char>) -> usize {
-        self.interpreted_strings.push(string.to_owned());
+    pub fn create_interpreted_string(&mut self, string: &str) -> usize {
+        self.interpreted_strings.push(string.to_string());
         self.interpreted_strings.len() - 1
     }
 }
