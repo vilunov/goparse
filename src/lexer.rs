@@ -186,14 +186,25 @@ impl<'a> LexerInner<'a> {
                         Err(Error::LiteralEnd) => {
                             return consume!(InterpretedString(
                                 self.strings.create_interpreted_string(&string)
-                            ));
+                            ))
                         }
                         _ => return Err(Error::TokenizingError),
                     }
                 }
             }
             '`' => {
-                
+                let mut string = String::new();
+                loop {
+                    match self.next() {
+                        Some((_, '`')) => {
+                            return consume!(RawString(
+                                self.strings.create_interpreted_string(&string)
+                            ))
+                        }
+                        Some((_, x)) => string.push(x),
+                        _ => return Err(Error::TokenizingError),
+                    }
+                }
             }
             _ => (),
         }

@@ -17,7 +17,7 @@ macro_rules! test_literal {
         fn $name() {
             let (parsed, _, literals) = lexer::Lexer::new().tokenize($input).unwrap().collect();
             match parsed[0] {
-                InterpretedString(idx) => {
+                InterpretedString(idx) | RawString(idx) => {
                     let result = &literals.interpreted_strings[idx];
                     assert_eq!(result.clone(), $expected);
                 }
@@ -80,8 +80,9 @@ test_literal!(
     r####""privet \\\"kek\\\"""####,
     "privet \\\"kek\\\""
 );
+test_literal!(string_raw_simple, r####"`kek`"####, "kek");
+test_literal!(string_raw_newline, "`kek\n`", "kek\n");
 
 // # Negative Tests
 test_ne!(string_interpreted_unescaped, r####""privet " kek""####);
 test_ne!(string_interpreted_unclosed, r####""privet"####);
-

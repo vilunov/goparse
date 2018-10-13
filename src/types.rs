@@ -146,6 +146,8 @@ pub enum Token {
     Rune(char),
     /// Interpreted String,
     InterpretedString(usize),
+    /// Raw String
+    RawString(usize),
     #[doc(hidden)]
     LineBreak,
 }
