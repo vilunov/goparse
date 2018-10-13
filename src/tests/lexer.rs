@@ -95,18 +95,21 @@ test_simple!(float_simple, r"0.5", vec![Float("0.5".to_string())]);
 
 test_simple!(float_zero_dot, r"0.", vec![Float("0.".to_string())]);
 test_simple!(float_simple_2, r"72.40", vec![Float("72.40".to_string())]);
-test_simple!(float_simple_zero, r"072.40", vec![Float("072.40".to_string())]);
+test_simple!(
+    float_simple_zero,
+    r"072.40",
+    vec![Float("072.40".to_string())]
+);
 test_simple!(float_exp_1, r"1.e+0", vec![Float("1.e+0".to_string())]);
-test_simple!(float_exp_2, r"6.67428e-11", vec![Float("6.67428e-11".to_string())]);
+test_simple!(
+    float_exp_2,
+    r"6.67428e-11",
+    vec![Float("6.67428e-11".to_string())]
+);
 test_simple!(float_exp_3, r"1E6", vec![Float("1E6".to_string())]);
 test_simple!(float_no_zero_1, r".25", vec![Float(".25".to_string())]);
-test_simple!(float_no_zero_2, r".12345E+5", vec![Float(".12345E+5".to_string())]);
-
-
-
-
-
-
-
-
-
+test_simple!(
+    float_no_zero_2,
+    r".12345E+5",
+    vec![Float(".12345E+5".to_string())]
+);

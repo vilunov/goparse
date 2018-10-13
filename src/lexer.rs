@@ -169,14 +169,14 @@ impl<'a> LexerInner<'a> {
                     Some((_, 'e')) | Some((_, 'E')) => {
                         let idx = self.process_exponent()?;
                         Ok(Some(Float(self.input[idx_start..idx].to_string())))
-                    },
-                    _ => Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                    }
+                    _ => Ok(Some(Float(self.input[idx_start..idx].to_string()))),
                 }
-            },
+            }
             Some((_, 'e')) | Some((_, 'E')) => {
                 let idx = self.process_exponent()?;
                 Ok(Some(Float(self.input[idx_start..idx].to_string())))
-            },
+            }
             Some((idx, _)) => Ok(Some(Float(self.input[idx_start..idx].to_string()))),
             _ => Ok(Some(Float(self.input[idx_start..].to_string()))),
         }
@@ -225,11 +225,9 @@ impl<'a> LexerInner<'a> {
                 loop {
                     match self.process_unicode_value(&is_string_escaped) {
                         Ok(c) => string.push(c),
-                        Err(Error::LiteralEnd) => {
-                            consume!(InterpretedString(
-                                self.strings.create_interpreted_string(&string)
-                            ))
-                        }
+                        Err(Error::LiteralEnd) => consume!(InterpretedString(
+                            self.strings.create_interpreted_string(&string)
+                        )),
                         _ => return Err(Error::TokenizingError),
                     }
                 }
@@ -239,9 +237,7 @@ impl<'a> LexerInner<'a> {
                 loop {
                     match self.next() {
                         Some((_, '`')) => {
-                            consume!(RawString(
-                                self.strings.create_interpreted_string(&string)
-                            ))
+                            consume!(RawString(self.strings.create_interpreted_string(&string)))
                         }
                         Some((_, x)) => string.push(x),
                         _ => return Err(Error::TokenizingError),
@@ -261,33 +257,33 @@ impl<'a> LexerInner<'a> {
                     Some((_, '.')) => return self.process_after_dot(idx_start),
                     Some((_, 'e')) | Some((_, 'E')) => {
                         let idx = self.process_exponent()?;
-                        return Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                        return Ok(Some(Float(self.input[idx_start..idx].to_string())));
                     }
-                    _ => return Ok(Some(Decimal(self.input[idx_start..idx].to_string())))
+                    _ => return Ok(Some(Decimal(self.input[idx_start..idx].to_string()))),
                 }
             }
-            '0' => {
-                match self.next() {
-                    Some((_, 'x')) | Some((_, 'X')) => {
-                        self.adv();
-                        self.skip_chars(is_hex_digit);
-                        if let Some((idx, _)) = self.cur {
-                            return Ok(Some(Hex(self.input[idx_start + 2..idx].to_string())));
+            '0' => match self.next() {
+                Some((_, 'x')) | Some((_, 'X')) => {
+                    self.adv();
+                    self.skip_chars(is_hex_digit);
+                    if let Some((idx, _)) = self.cur {
+                        return Ok(Some(Hex(self.input[idx_start + 2..idx].to_string())));
+                    }
+                    return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
+                }
+                Some((_, '.')) => return self.process_after_dot(idx_start),
+                _ => {
+                    self.skip_chars(is_octal_digit);
+                    match self.cur {
+                        Some((_, '.')) => return self.process_after_dot(idx_start),
+                        Some((idx, _)) => {
+                            return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string())))
                         }
-                        return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
-                    },
-                    Some((_, '.')) => return self.process_after_dot(idx_start),
-                    _ => {
-                        self.skip_chars(is_octal_digit);
-                        match self.cur {
-                            Some((_, '.')) => return self.process_after_dot(idx_start),
-                            Some((idx, _)) => return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string()))),
-                            _ => return Ok(Some(Octal(self.input[idx_start + 1..].to_string()))),
-                        }
+                        _ => return Ok(Some(Octal(self.input[idx_start + 1..].to_string()))),
                     }
                 }
-            }
-            _ => ()
+            },
+            _ => (),
         }
 
         // # Operators and punctuation
@@ -303,11 +299,11 @@ impl<'a> LexerInner<'a> {
                     match self.cur {
                         Some((_, 'e')) | Some((_, 'E')) => {
                             let idx = self.process_exponent()?;
-                            return Ok(Some(Float(self.input[idx_start..idx].to_string())))
-                        },
-                        _ => return Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                            return Ok(Some(Float(self.input[idx_start..idx].to_string())));
+                        }
+                        _ => return Ok(Some(Float(self.input[idx_start..idx].to_string()))),
                     }
-                },
+                }
                 Some((_, '.')) => match self.next() {
                     Some((_, '.')) => consume!(Punc(DotDotDot)),
                     _ => return Err(Error::TokenizingError),

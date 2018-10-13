@@ -31,12 +31,25 @@ fn main() {
                 kek "std/fmt3"
                 . "shrek"
             )
+
+            const kek
+            const shrek;
+
+            const (
+                autism, sdada
+                is
+                good
+                for;
+                your;
+                health;
+            )
             "#,
         ).unwrap()
         .collect();
     let idents = idents.identifiers();
     let string_literals = string_literals.literals();
-    let (_, ast) = syntax::program(&res[..]).unwrap();
+    let (remainder, ast) = syntax::program(&res[..]).unwrap();
+    assert_eq!(remainder, &[]);
     let j = CompleteOutput {
         ast,
         idents,
