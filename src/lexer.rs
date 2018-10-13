@@ -78,7 +78,7 @@ impl<'a> LexerInner<'a> {
     }
 
     // # Rune Literal Help routines
-    fn process_end_rune(&mut self, x: char) -> Result<Option<Token>, Error> {
+    fn process_end_rune(&mut self, x: Character) -> Result<Option<Token>, Error> {
         match self.next() {
             Some((_, '\'')) => {
                 self.adv();
@@ -91,7 +91,7 @@ impl<'a> LexerInner<'a> {
     fn process_char_bytes(&mut self, x: &str, base: u32) -> Result<Option<Token>, Error> {
         match u32::from_str_radix(x, base) {
             Ok(res) => match from_u32(res) {
-                Some(c) => self.process_end_rune(c),
+                Some(c) => self.process_end_rune(Character::Regular(c)),
                 _ => Err(Error::TokenizingError),
             },
             _ => Err(Error::TokenizingError),
@@ -126,7 +126,9 @@ impl<'a> LexerInner<'a> {
         match cur_char {
             '\'' => match self.next() {
                 Some((_, '\\')) => match self.next() {
-                    Some((_, x)) if is_rune_escaped(x) => return self.process_end_rune(x),
+                    Some((_, x)) if is_rune_escaped(x) => {
+                        return self.process_end_rune(Character::Escaped(x))
+                    }
                     Some((idx_oct, x)) if is_octal_digit(x) => {
                         let idx = self.get_next_chars(2, &is_octal_digit)?;
                         return self.process_char_bytes(&self.input[idx_oct..=idx], 8);
@@ -148,7 +150,7 @@ impl<'a> LexerInner<'a> {
                     }
                     _ => return Err(Error::TokenizingError),
                 },
-                Some((_, x)) => return self.process_end_rune(x),
+                Some((_, x)) => return self.process_end_rune(Character::Regular(x)),
                 _ => return Err(Error::TokenizingError),
             },
             _ => (),

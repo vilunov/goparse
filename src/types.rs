@@ -124,6 +124,12 @@ pub enum Punctuation {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Character {
+    Regular(char),
+    Escaped(char),
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     /// Keyword - cannot be used as an identifier
     Kw(Keyword),
@@ -143,7 +149,7 @@ pub enum Token {
     /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
     Hex(String),
     /// Rune (Character) literal
-    Rune(char),
+    Rune(Character),
     #[doc(hidden)]
     LineBreak,
 }
