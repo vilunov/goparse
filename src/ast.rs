@@ -125,12 +125,63 @@ pub enum Ty {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum Statement {
     Decl(Declaration),
-    Simple(SimpleStatement),
     LabeledStmt {
         label: usize,
         statement: Box<Statement>,
     },
+    Simple(SimpleStatement),
+    GoStmt(Expression),
+    ReturnStmt(Option<Vec<Expression>>),
+    BreakStmt(Option<usize>),
+    ContinueStmt(Option<usize>),
+    GotoStmt(usize),
+    FallthroughStmt,
+    Block(Box<Block>),
+    IfStmt {
+        simple: Option<SimpleStatement>,
+        expression: Expression,
+        block: Box<Block>,
+        else_branch: Box<IfInner>,
+    },
+    ExprSwitchStmt {
+        simple: Option<SimpleStatement>,
+        expression: Option<Expression>,
+        clauses: Vec<Box<ExprSwitchCase>>,
+    },
+    TypeSwitchStmt {
+        simple: Option<SimpleStatement>,
+        guard: TypeSwitchGuard,
+        clauses: Vec<Box<TypeSwitchCase>>,
+    },
+}
 
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct TypeSwitchCase {
+    type_list: Vec<Ty>,
+    statements: Vec<Statement>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct TypeSwitchGuard {
+    identifier: Option<usize>,
+    primary: PrimaryExpr,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct ExprSwitchCase {
+    expressions: Option<Vec<Expression>>, // None = default clause
+    statements: Vec<Statement>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum IfInner {
+    IfStmt(Statement::IfStmt),
+    Block(Block)
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct Block {
+    statements: Vec<Statement>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
