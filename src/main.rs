@@ -44,6 +44,11 @@ fn main() {
                 health;
             )
 
+            type (
+                ebal = int
+                kek = string
+            )
+
             func blea(a int) bool
             "#,
         ).unwrap()

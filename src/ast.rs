@@ -37,9 +37,16 @@ pub struct ConstSpec {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct TypeSpec {
+    pub identifier: usize,
+    pub ty: Ty
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum TopLevelDecl {
     Consts(Vec<ConstSpec>),
-    Functions(FuncDecl),
+    Types(Vec<TypeSpec>),
+    Function(FuncDecl),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]

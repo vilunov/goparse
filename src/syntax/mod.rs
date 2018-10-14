@@ -94,6 +94,22 @@ named!(const_decl(&[Token]) -> Vec<ConstSpec>, do_parse!(
     >> (specs)
 ));
 
+named!(type_spec(&[Token]) -> TypeSpec, do_parse!(
+       identifier: identifier
+    >> opt!(apply!(token, Punc(Punctuation::Assign)))
+    >> ty: ty
+
+    >> (TypeSpec { identifier, ty } )
+));
+
+named!(type_decl(&[Token]) -> Vec<TypeSpec>, do_parse!(
+       apply!(token, Kw(Type))
+    >> specs: call!(one_or_many, &type_spec)
+    >> semicolon
+
+    >> (specs)
+));
+
 named!(parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
         idents: separated_nonempty_list!(comma, identifier)
     >>  ddd: opt!(dot_dot_dot)
@@ -130,7 +146,8 @@ named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
 
 named!(top_level_decl(&[Token]) -> TopLevelDecl,
     alt!(map!(const_decl, TopLevelDecl::Consts)
-        |map!(func_decl, TopLevelDecl::Functions))
+        |map!(func_decl, TopLevelDecl::Function)
+        |map!(type_decl, TopLevelDecl::Types))
 );
 
 named!(pub program(&[Token]) -> Program, do_parse!(

@@ -38,6 +38,7 @@ impl Keyword {
             "import" => Some(Keyword::Import),
             "package" => Some(Keyword::Package),
             "func" => Some(Keyword::Func),
+            "type" => Some(Keyword::Type),
             _ => None,
         }
     }
