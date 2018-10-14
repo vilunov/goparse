@@ -3,6 +3,7 @@ use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
 use ast::*;
 use types::BinaryOp::*;
 use types::Keyword::*;
+use types::Literal::*;
 use types::Token::*;
 use types::*;
 
@@ -22,7 +23,7 @@ fn identifier(tokens: &[Token]) -> IResult<usize> {
 fn string_literal(tokens: &[Token]) -> IResult<usize> {
     if tokens.len() < 1 {
         need_more(tokens, Needed::Size(1))
-    } else if let InterpretedString(id) = tokens[0] {
+    } else if let Lit(InterpretedString(id)) = tokens[0] {
         Ok((&tokens[1..], id))
     } else {
         Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))

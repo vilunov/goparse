@@ -125,6 +125,26 @@ pub enum Punctuation {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Literal {
+    /// Decimal integer literal, i.e. `1972`
+    Decimal(String),
+    /// Octal integer literal, i.e. `031337`
+    Octal(String),
+    /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
+    Hex(String),
+    /// Float literal, i.e. '0.5'
+    Float(String),
+    /// Imaginary literal, i.e. '0.5i'
+    Imaginary(String),
+    /// Rune (Character) literal, i.e. 'k'
+    Rune(char),
+    /// Interpreted String literal, i.e. "mp4 footage"
+    InterpretedString(usize),
+    /// RawString literal, i.e. `RAW footage`
+    RawString(usize),
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     /// Keyword - cannot be used as an identifier
     Kw(Keyword),
@@ -137,20 +157,8 @@ pub enum Token {
     BinOpAssign(BinaryOp),
     /// Other operators, symbols and punctuation
     Punc(Punctuation),
-    /// Decimal integer literal, i.e. `1972`
-    Decimal(String),
-    /// Octal integer literal, i.e. `031337`
-    Octal(String),
-    /// Hexadecimal integer literal, i.e. `0xDEADBEEF`
-    Hex(String),
-    /// Float literal, i.e. '0.5'
-    Float(String),
-    /// Rune (Character) literal
-    Rune(char),
-    /// Interpreted String,
-    InterpretedString(usize),
-    /// Raw String
-    RawString(usize),
+    /// Literal - constant numbers, strings
+    Lit(Literal),
     #[doc(hidden)]
     LineBreak,
 }
@@ -188,23 +196,21 @@ impl IdentifierStorage {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct StringLiteralsStorage {
-    pub interpreted_strings: Vec<String>,
+    pub literals: Vec<String>,
 }
 
 impl StringLiteralsStorage {
     pub fn new() -> Self {
-        StringLiteralsStorage {
-            interpreted_strings: vec![],
-        }
+        StringLiteralsStorage { literals: vec![] }
     }
 
     pub fn create_interpreted_string(&mut self, string: &str) -> usize {
-        self.interpreted_strings.push(string.to_string());
-        self.interpreted_strings.len() - 1
+        self.literals.push(string.to_string());
+        self.literals.len() - 1
     }
 
     pub fn literals(self) -> Vec<String> {
-        self.interpreted_strings
+        self.literals
     }
 }
 

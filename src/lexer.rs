@@ -2,6 +2,7 @@ use std::char::from_u32;
 use std::str::CharIndices;
 use std::u32;
 use types::BinaryOp::*;
+use types::Literal::*;
 use types::PairedToken::*;
 use types::Punctuation::*;
 use types::Token::*;
@@ -90,7 +91,7 @@ impl<'a> LexerInner<'a> {
         match self.next() {
             Some((_, '\'')) => {
                 self.adv();
-                Ok(Some(Rune(x)))
+                Ok(Some(Lit(Rune(x))))
             }
             _ => Err(Error::TokenizingError),
         }
@@ -161,6 +162,38 @@ impl<'a> LexerInner<'a> {
         }
     }
 
+    fn process_imaginary_float(
+        &mut self,
+        idx_start: usize,
+        idx: usize,
+    ) -> Result<Option<Token>, Error> {
+        match self.cur {
+            Some((_, 'i')) => {
+                self.adv();
+                Ok(Some(Lit(Imaginary(
+                    self.input[idx_start..=idx].to_string(),
+                ))))
+            }
+            _ => Ok(Some(Lit(Float(self.input[idx_start..idx].to_string())))),
+        }
+    }
+
+    fn process_imaginary_decimal(
+        &mut self,
+        idx_start: usize,
+        idx: usize,
+    ) -> Result<Option<Token>, Error> {
+        match self.cur {
+            Some((_, 'i')) => {
+                self.adv();
+                Ok(Some(Lit(Imaginary(
+                    self.input[idx_start..=idx].to_string(),
+                ))))
+            }
+            _ => Ok(Some(Lit(Decimal(self.input[idx_start..idx].to_string())))),
+        }
+    }
+
     fn process_after_dot(&mut self, idx_start: usize) -> Result<Option<Token>, Error> {
         match self.next() {
             Some((_, x)) if is_decimal_digit(x) => {
@@ -168,17 +201,23 @@ impl<'a> LexerInner<'a> {
                 match self.cur {
                     Some((_, 'e')) | Some((_, 'E')) => {
                         let idx = self.process_exponent()?;
-                        Ok(Some(Float(self.input[idx_start..idx].to_string())))
-                    }
-                    _ => Ok(Some(Float(self.input[idx_start..idx].to_string()))),
+                        self.process_imaginary_float(idx_start, idx)
+                    },
+                    Some((_, 'i')) => {
+                        self.adv();
+                        Ok(Some(Lit(Imaginary(
+                            self.input[idx_start..=idx].to_string(),
+                        ))))
+                    },
+                    _ => Ok(Some(Lit(Float(self.input[idx_start..idx].to_string())))),
                 }
             }
             Some((_, 'e')) | Some((_, 'E')) => {
                 let idx = self.process_exponent()?;
-                Ok(Some(Float(self.input[idx_start..idx].to_string())))
+                self.process_imaginary_float(idx_start, idx)
             }
-            Some((idx, _)) => Ok(Some(Float(self.input[idx_start..idx].to_string()))),
-            _ => Ok(Some(Float(self.input[idx_start..].to_string()))),
+            Some((idx, _)) => self.process_imaginary_float(idx_start, idx),
+            _ => Ok(Some(Lit(Float(self.input[idx_start..].to_string())))),
         }
     }
 
@@ -225,9 +264,9 @@ impl<'a> LexerInner<'a> {
                 loop {
                     match self.process_unicode_value(&is_string_escaped) {
                         Ok(c) => string.push(c),
-                        Err(Error::LiteralEnd) => consume!(InterpretedString(
+                        Err(Error::LiteralEnd) => consume!(Lit(InterpretedString(
                             self.strings.create_interpreted_string(&string)
-                        )),
+                        ))),
                         _ => return Err(Error::TokenizingError),
                     }
                 }
@@ -236,9 +275,9 @@ impl<'a> LexerInner<'a> {
                 let mut string = String::new();
                 loop {
                     match self.next() {
-                        Some((_, '`')) => {
-                            consume!(RawString(self.strings.create_interpreted_string(&string)))
-                        }
+                        Some((_, '`')) => consume!(Lit(RawString(
+                            self.strings.create_interpreted_string(&string)
+                        ))),
                         Some((_, x)) => string.push(x),
                         _ => return Err(Error::TokenizingError),
                     }
@@ -257,9 +296,9 @@ impl<'a> LexerInner<'a> {
                     Some((_, '.')) => return self.process_after_dot(idx_start),
                     Some((_, 'e')) | Some((_, 'E')) => {
                         let idx = self.process_exponent()?;
-                        return Ok(Some(Float(self.input[idx_start..idx].to_string())));
+                        return self.process_imaginary_float(idx_start, idx);
                     }
-                    _ => return Ok(Some(Decimal(self.input[idx_start..idx].to_string()))),
+                    _ => return self.process_imaginary_decimal(idx_start, idx),
                 }
             }
             '0' => match self.next() {
@@ -267,9 +306,9 @@ impl<'a> LexerInner<'a> {
                     self.adv();
                     self.skip_chars(is_hex_digit);
                     if let Some((idx, _)) = self.cur {
-                        return Ok(Some(Hex(self.input[idx_start + 2..idx].to_string())));
+                        return Ok(Some(Lit(Hex(self.input[idx_start + 2..idx].to_string()))));
                     }
-                    return Ok(Some(Hex(self.input[idx_start + 2..].to_string())));
+                    return Ok(Some(Lit(Hex(self.input[idx_start + 2..].to_string()))));
                 }
                 Some((_, '.')) => return self.process_after_dot(idx_start),
                 _ => {
@@ -283,15 +322,21 @@ impl<'a> LexerInner<'a> {
                                 Some((_, '.')) => return self.process_after_dot(idx_start),
                                 Some((_, 'e')) | Some((_, 'E')) => {
                                     let idx = self.process_exponent()?;
-                                    return Ok(Some(Float(self.input[idx_start..idx].to_string())));
+                                    return self.process_imaginary_float(idx_start, idx);
+                                }
+                                Some((_, 'i')) => {
+                                    self.adv();
+                                    return Ok(Some(Lit(Imaginary(
+                                        self.input[idx_start..=idx].to_string(),
+                                    ))));
                                 }
                                 _ => return Err(Error::TokenizingError),
                             }
                         }
                         Some((idx, _)) => {
-                            return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string())))
+                            return Ok(Some(Lit(Octal(self.input[idx_start + 1..idx].to_string()))))
                         }
-                        _ => return Ok(Some(Octal(self.input[idx_start + 1..].to_string()))),
+                        _ => return Ok(Some(Lit(Octal(self.input[idx_start + 1..].to_string())))),
                     }
                 }
             },
@@ -311,9 +356,15 @@ impl<'a> LexerInner<'a> {
                     match self.cur {
                         Some((_, 'e')) | Some((_, 'E')) => {
                             let idx = self.process_exponent()?;
-                            return Ok(Some(Float(self.input[idx_start..idx].to_string())));
+                            return Ok(Some(Lit(Float(self.input[idx_start..idx].to_string()))));
+                        },
+                        Some((_, 'i')) => {
+                            self.adv();
+                            return Ok(Some(Lit(Imaginary(
+                                self.input[idx_start..=idx].to_string(),
+                            ))));
                         }
-                        _ => return Ok(Some(Float(self.input[idx_start..idx].to_string()))),
+                        _ => return Ok(Some(Lit(Float(self.input[idx_start..idx].to_string())))),
                     }
                 }
                 Some((_, '.')) => match self.next() {
@@ -521,7 +572,7 @@ fn implicit_semicolon(t: &Token) -> bool {
                 || kw == Keyword::Return
         }
         Ident(_) | Punc(Right(_)) | Punc(Increment) | Punc(Decrement) => true,
-        InterpretedString(_) => true,
+        Lit(InterpretedString(_)) => true,
         _ => false,
     }
 }
