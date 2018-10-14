@@ -5,14 +5,16 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-use std::fs::{read_to_string, write};
+use std::path::{Path, PathBuf};
+use std::fs::{read_to_string, write, read_dir, create_dir};
 
 pub mod ast;
 pub mod lexer;
 pub mod syntax;
 pub mod types;
 
-const OUTPUT: &'static str = "out.txt";
+const INPUT_FOLDER: &'static str = "input";
+const OUTPUT_FOLDER: &'static str = "output";
 
 #[derive(Serialize)]
 struct CompleteOutput {
@@ -21,68 +23,50 @@ struct CompleteOutput {
     string_literals: Vec<String>,
 }
 
-fn main() {
-    let (res, idents, string_literals) = lexer::Lexer::new()
-        .tokenize(
-            r#"package kekistan
-            import . "fmt"
-            import (
-                "fmt2"
-                kek "std/fmt3"
-                . "shrek"
-            )
+fn file_paths() -> impl Iterator<Item=PathBuf> {
+    read_dir(INPUT_FOLDER).unwrap()
+        .flatten()
+        .filter(|i| i.path()
+            .extension()
+            .and_then(|i| i.to_str()) == Some("go"))
+        .map(|i| i.path())
+}
 
-            const shrek, kek = ^+1[:] + !1 && 2, 1[:1:2], i(i)(i), i(i, i)
-            const shrek, kek int = int(32).kek, aye.smert[1[1]]
-            const shrek; //dsadsaads
+fn read_files(paths: impl Iterator<Item=PathBuf>) -> impl Iterator<Item=(PathBuf, String)> {
+    paths.flat_map(|path| match read_to_string(&path) {
+        Ok(v) => Some((path, v)),
+        Err(e) => {
+            eprintln!("Read error: {}", e);
+            None
+        }
+    })
+}
 
-            const (
-                autism, sdada chan<- int = 32
-                is
-                good <-chan chan int = 1
-                for chan <- chan int= 4;
-                your;
-                health;
-                d
-            )
-
-            type (
-                ebal = int
-                kek = string
-                net = [1]string
-                kek = [][1]string
-                shrek = map[string]int
-                intrfc = interface {
-                    kek
-                    shrek (i int) bool
-                }
-                some = struct {
-                    intrfc
-                    *net
-                    kek "tag2";
-                    a, b int "tag"
-                }
-            )
-
-            var kek = 10
-
-            func blea(a int) bool
-            func (p *Point) blea(a int) bool
-            "#,
-        ).unwrap()
-        .collect();
-    let idents = idents.identifiers();
-    let string_literals = string_literals.literals();
-    println!("{:?}\n{:?}", &idents, &string_literals);
-    let (remainder, ast) = syntax::program(&res[..]).unwrap();
-    assert_eq!(remainder, &[]);
-    let j = CompleteOutput {
-        ast,
-        idents,
-        string_literals,
+fn write_file(path: &Path, input: &str) -> Result<(), Box<std::error::Error>> {
+    let (tokens, idents, strings): (Vec<types::Token>, _, _) = lexer::Lexer::new().tokenize(input)?.collect();
+    let ast = {
+        match syntax::program(tokens.as_slice())
+            .map_err(|_| types::Error::SyntaxParsingError)? {
+            (&[], v) => v,
+            _ => return Err(Box::new(types::Error::TokenizingError)),
+        }
     };
-    let i = serde_json::to_string_pretty(&j).unwrap();
-    write(OUTPUT, i).unwrap();
+    let path: &Path = path.strip_prefix(INPUT_FOLDER)?;
+    let path = Path::new(OUTPUT_FOLDER).join(path);
+    let s = CompleteOutput {
+        ast,
+        idents: idents.identifiers(),
+        string_literals: strings.literals(),
+    };
+    let output = serde_json::to_string_pretty(&s)?;
+    Ok(write(path, output)?)
+}
+
+fn main() {
+    let _ = create_dir(OUTPUT_FOLDER);
+    for (path, input) in read_files(file_paths()) {
+        println!("{:?}", write_file(&path, &input));
+    }
 }
 
 #[cfg(test)]

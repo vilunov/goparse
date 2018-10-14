@@ -225,4 +225,25 @@ impl StringLiteralsStorage {
 pub enum Error {
     TokenizingError,
     LiteralEnd,
+    SyntaxParsingError,
+}
+
+use std::error::Error as StdError;
+use std::fmt::{Formatter, Display, Error as FmtError};
+
+impl Display for Error {
+    fn fmt<'a>(&self, f: &mut Formatter<'a>) -> Result<(), FmtError> {
+        f.write_str("IncompleteParsing")?;
+        Ok(())
+    }
+}
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        "Some tokens were not consumed during syntactical analysis"
+    }
+
+    fn cause(&self) -> Option<&StdError> {
+        None
+    }
 }
