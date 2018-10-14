@@ -37,18 +37,21 @@ fn main() {
             const shrek; //dsadsaads
 
             const (
-                autism, sdada int = 32
+                autism, sdada chan<- int = 32
                 is
-                good
-                for;
+                good <-chan chan int = 1
+                for chan <- chan int= 4;
                 your;
                 health;
+                d
             )
 
             type (
                 ebal = int
                 kek = string
                 net = [1]string
+                kek = [][1]string
+                shrek = map[string]int
             )
 
             var kek = 10

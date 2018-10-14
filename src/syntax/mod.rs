@@ -60,12 +60,47 @@ named!(ty(&[Token]) -> Ty, alt!(
     map!(full_identifier, Ty::TypeName) |
     do_parse!(
            open_bracket
-        >> length: expression
+        >> length: opt!(expression)
         >> close_bracket
         >> elems: ty
 
-        >> (Ty::Array { length: Box::new(length), elements: Box::new(elems) })
-    )
+        >> (Ty::Array { length: length.map(Box::new), elements: Box::new(elems) })
+    ) |
+    do_parse!(
+           apply!(token, Kw(Map))
+        >> open_bracket
+        >> keys: ty
+        >> close_bracket
+        >> elems: ty
+
+        >> (Ty::Map { keys: Box::new(keys), elements: Box::new(elems) })
+    ) |
+    do_parse!(
+           star
+        >> t: ty
+        >> (Ty::Pointer(Box::new(t)))
+    ) |
+    do_parse!(
+           apply!(token, Kw(Chan))
+        >> t: ty
+        >> (Ty::ChanBi(Box::new(t)))
+    ) |
+    do_parse!(
+           apply!(token, Kw(Chan)) >> left_arrow
+        >> t: ty
+        >> (Ty::ChanTx(Box::new(t)))
+    ) |
+    do_parse!(
+           left_arrow >> apply!(token, Kw(Chan))
+        >> t: ty
+        >> (Ty::ChanRx(Box::new(t)))
+    ) |
+    do_parse!(
+           apply!(token, Kw(Func))
+        >> s: signature
+        >> (Ty::Function(s))
+    ) |
+    map!(tuple!(open_paren, ty, close_paren), |(_, i, _)| i)
 ));
 
 named!(import_spec(&[Token]) -> ImportSpec, do_parse!(
@@ -161,12 +196,12 @@ named!(parameters_decl(&[Token]) -> Vec<ParametersDecl>, do_parse!(
     >> (parameters)
 ));
 
-named!(signature(&[Token]) -> Signature, do_parse!(
+named!(pub signature(&[Token]) -> Signature, do_parse!(
         params: parameters_decl
     >>  result: opt!(alt!(map!(parameters_decl, SignatureResult::Params)
                         | map!(ty, SignatureResult::TypeResult)))
 
-    >> (Signature { params, result })
+    >> (Signature { params, result: result.map(Box::new) })
 ));
 
 named!(func_decl(&[Token]) -> FuncDecl, do_parse!(

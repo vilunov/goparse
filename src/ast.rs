@@ -99,9 +99,18 @@ pub enum FullIdentifier {
 pub enum Ty {
     TypeName(FullIdentifier),
     Array {
-        length: Box<Expression>,
+        length: Option<Box<Expression>>,
         elements: Box<Ty>,
     },
+    Map {
+        keys: Box<Ty>,
+        elements: Box<Ty>
+    },
+    ChanRx(Box<Ty>),
+    ChanTx(Box<Ty>),
+    ChanBi(Box<Ty>),
+    Pointer(Box<Ty>),
+    Function(Signature),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -159,7 +168,7 @@ pub enum UnaryOp {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct Signature {
     pub params: Vec<ParametersDecl>,
-    pub result: Option<SignatureResult>,
+    pub result: Option<Box<SignatureResult>>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]

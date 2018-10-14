@@ -34,10 +34,12 @@ impl Keyword {
         match ident {
             // TODO может переписать это дерьмо на макрос?
             "break" => Some(Keyword::Break),
+            "chan" => Some(Keyword::Chan),
             "const" => Some(Keyword::Const),
             "import" => Some(Keyword::Import),
             "package" => Some(Keyword::Package),
             "func" => Some(Keyword::Func),
+            "map" => Some(Keyword::Map),
             "type" => Some(Keyword::Type),
             "var" => Some(Keyword::Var),
             _ => None,
