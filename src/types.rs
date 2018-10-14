@@ -37,6 +37,7 @@ impl Keyword {
             "chan" => Some(Keyword::Chan),
             "const" => Some(Keyword::Const),
             "import" => Some(Keyword::Import),
+            "interface" => Some(Keyword::Interface),
             "package" => Some(Keyword::Package),
             "func" => Some(Keyword::Func),
             "map" => Some(Keyword::Map),

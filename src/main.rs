@@ -52,6 +52,10 @@ fn main() {
                 net = [1]string
                 kek = [][1]string
                 shrek = map[string]int
+                intrfc = interface {
+                    kek
+                    shrek (i int) bool
+                }
             )
 
             var kek = 10

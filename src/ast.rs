@@ -96,6 +96,15 @@ pub enum FullIdentifier {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum MethodSpec {
+    Interface(FullIdentifier),
+    Method {
+        name: usize,
+        signature: Signature,
+    },
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum Ty {
     TypeName(FullIdentifier),
     Array {
@@ -111,6 +120,7 @@ pub enum Ty {
     ChanBi(Box<Ty>),
     Pointer(Box<Ty>),
     Function(Signature),
+    Interface(Vec<MethodSpec>),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]

@@ -86,6 +86,8 @@ token!(open_paren, Punc(Left(Parenthesis)));
 token!(close_paren, Punc(Right(Parenthesis)));
 token!(open_bracket, Punc(Left(Bracket)));
 token!(close_bracket, Punc(Right(Bracket)));
+token!(open_brace, Punc(Left(Brace)));
+token!(close_brace, Punc(Right(Brace)));
 token!(colon, Punc(Colon));
 token!(dot_dot_dot, Punc(DotDotDot));
 token!(star, BinOp(Multiply));

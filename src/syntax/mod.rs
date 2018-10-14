@@ -100,7 +100,21 @@ named!(ty(&[Token]) -> Ty, alt!(
         >> s: signature
         >> (Ty::Function(s))
     ) |
+    do_parse!(
+           apply!(token, Kw(Interface))
+        >> open_brace
+        >> specs: many0!(map!(tuple!(method_spec, semicolon), |(i, _)| i))
+        >> close_brace
+
+        >> (Ty::Interface(specs))
+    ) |
     map!(tuple!(open_paren, ty, close_paren), |(_, i, _)| i)
+));
+
+named!(method_spec(&[Token]) -> MethodSpec, alt!(
+    map!(tuple!(identifier, signature), |(i, j)| MethodSpec::Method { name: i, signature: j }) |
+    map!(full_identifier, MethodSpec::Interface)
+
 ));
 
 named!(import_spec(&[Token]) -> ImportSpec, do_parse!(
