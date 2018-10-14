@@ -1,6 +1,7 @@
 use lexer;
 use types::Literal::*;
 use types::Token::*;
+use types::Token;
 
 macro_rules! test_simple {
     ($name: ident, $input: expr, $expected: expr) => {
@@ -159,3 +160,33 @@ test_simple!(
 );
 
 test_ne!(not_valid_decimal, r"0729");
+
+test_simple!(
+    comment_single_line,
+    r"//Drums, the never ending drums\n",
+    Vec::<Token>::new()
+);
+
+test_simple!(
+    comment_multi_line_1,
+    r"/*Drums, the never ending drums\n*/",
+    Vec::<Token>::new()
+);
+
+test_simple!(
+    comment_multi_line_2,
+    r"/*Drums, the never ending drums\n*/20",
+    vec![Lit(Decimal("20".to_string()))]
+);
+
+test_simple!(
+    comment_multi_line_3,
+    r"/*Drums, the never ending drums*/20",
+    vec![Lit(Decimal("20".to_string()))]
+);
+
+test_simple!(
+    comment_multi_line_4,
+    r"/*Drums, the never ****** ending drums*/20",
+    vec![Lit(Decimal("20".to_string()))]
+);

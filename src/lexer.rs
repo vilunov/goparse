@@ -257,7 +257,6 @@ impl<'a> LexerInner<'a> {
         }
 
         // # String Literal
-
         match cur_char {
             '\"' => {
                 let mut string = String::new();
@@ -287,7 +286,6 @@ impl<'a> LexerInner<'a> {
         }
 
         // # Number Literals
-
         match cur_char {
             '1'..='9' => {
                 self.adv();
@@ -434,6 +432,33 @@ impl<'a> LexerInner<'a> {
                 _ => return Ok(Some(BinOp(Multiply))),
             },
             '/' => match self.next() {
+                // # Single Line Comments
+                Some((_, '/')) => {
+                    self.skip_chars(|x| x != '\n');
+                    consume!(LineBreak)
+                },
+                // # Multiline Comments
+                Some((_, '*')) => {
+                    let mut newline_flag = false;
+                    let predicate = |x: char| (x != '*') && (x != '\n');
+                    loop {
+                        self.skip_chars(predicate);
+                        match self.cur {
+                            Some((_, '*')) => match self.next() {
+                                Some((_, '/')) => match newline_flag {
+                                    true => consume!(LineBreak),
+                                    false => {
+                                        self.adv();
+                                        return self.next_token()
+                                    }
+                                }
+                                _ => ()
+                            },
+                            Some((_, '\n')) => newline_flag = true,
+                            _ => return Err(Error::TokenizingError)
+                        }
+                    }
+                },
                 Some((_, '=')) => consume!(BinOpAssign(Divide)),
                 _ => return Ok(Some(BinOp(Divide))),
             },
