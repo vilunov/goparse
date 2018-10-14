@@ -121,6 +121,7 @@ pub enum Ty {
     Pointer(Box<Ty>),
     Function(Signature),
     Interface(Vec<MethodSpec>),
+    Struct(Vec<FieldDecl>),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -202,4 +203,21 @@ pub struct FuncDecl {
     pub signature: Signature
 }
 
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum FieldDeclInner {
+    Embedded {
+        star: bool,
+        type_name: FullIdentifier,
+    },
+    Explicit {
+        identifiers: Vec<usize>,
+        ty: Ty,
+    },
+}
 
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct FieldDecl {
+    #[serde(flatten)]
+    pub inner: FieldDeclInner,
+    pub tag: Option<usize>,
+}

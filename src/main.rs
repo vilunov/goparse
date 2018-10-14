@@ -56,6 +56,12 @@ fn main() {
                     kek
                     shrek (i int) bool
                 }
+                some = struct {
+                    intrfc
+                    *net
+                    kek "tag2";
+                    a, b int "tag"
+                }
             )
 
             var kek = 10

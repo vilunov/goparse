@@ -112,6 +112,14 @@ named!(ty(&[Token]) -> Ty, alt!(
 
         >> (Ty::Interface(specs))
     ) |
+    do_parse!(
+           apply!(token, Kw(Struct))
+        >> open_brace
+        >> specs: many0!(map!(tuple!(field_decl, semicolon), |(i, _)| i))
+        >> close_brace
+
+        >> (Ty::Struct(specs))
+    ) |
     map!(tuple!(open_paren, ty, close_paren), |(_, i, _)| i)
 ));
 
@@ -119,6 +127,19 @@ named!(method_spec(&[Token]) -> MethodSpec, alt!(
     map!(tuple!(identifier, signature), |(i, j)| MethodSpec::Method { name: i, signature: j }) |
     map!(full_identifier, MethodSpec::Interface)
 
+));
+
+named!(field_decl(&[Token]) -> FieldDecl, do_parse!(
+       inner: alt!(do_parse!(identifiers: identifier_list >>
+                             ty: ty >>
+                             (FieldDeclInner::Explicit { identifiers, ty })) |
+                   map!(tuple!(opt!(star), full_identifier),
+                        |(i, j)| FieldDeclInner::Embedded { star: i.is_some(), type_name: j })
+
+       )
+    >> tag: opt!(string_literal)
+
+    >> (FieldDecl { inner, tag })
 ));
 
 named!(import_spec(&[Token]) -> ImportSpec, do_parse!(

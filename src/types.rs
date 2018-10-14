@@ -41,6 +41,7 @@ impl Keyword {
             "package" => Some(Keyword::Package),
             "func" => Some(Keyword::Func),
             "map" => Some(Keyword::Map),
+            "struct" => Some(Keyword::Struct),
             "type" => Some(Keyword::Type),
             "var" => Some(Keyword::Var),
             _ => None,
