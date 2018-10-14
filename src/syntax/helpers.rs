@@ -4,6 +4,7 @@ use ast::{UnaryOp, BinaryOp as AstBinaryOp};
 use types::BinaryOp::*;
 use types::PairedToken::*;
 use types::Punctuation::*;
+use types::Keyword::*;
 use types::Token::*;
 use types::*;
 
@@ -103,4 +104,63 @@ token!(colon, Punc(Colon));
 token!(dot_dot_dot, Punc(DotDotDot));
 token!(star, BinOp(Multiply));
 token!(left_arrow, Punc(LeftArrow));
+token!(double_and, Punc(DoubleAnd));
+token!(increment, Punc(Increment));
+token!(decrement, Punc(Decrement));
+token!(equals, Punc(Equals));
+token!(le, Punc(Le));
+token!(lt, Punc(Lt));
+token!(ge, Punc(Ge));
+token!(gt, Punc(Gt));
+token!(ne, Punc(Ne));
+token!(bang, Punc(Bang));
+token!(collon_assign, Punc(ColonAssign));
 token!(assign, Punc(Assign));
+
+token!(kw_break, Kw(Break));
+token!(kw_case, Kw(Case));
+token!(kw_const, Kw(Const));
+token!(kw_cont, Kw(Continue));
+token!(kw_default, Kw(Default));
+token!(kw_defer, Kw(Defer));
+token!(kw_fallthrough, Kw(Fallthrough));
+token!(kw_for, Kw(For));
+token!(kw_func, Kw(Func));
+token!(kw_go, Kw(Go));
+token!(kw_goto, Kw(Goto));
+token!(kw_if, Kw(If));
+token!(kw_import, Kw(Import));
+token!(kw_interface, Kw(Interface));
+token!(kw_map, Kw(Map));
+token!(kw_package, Kw(Package));
+token!(kw_range, Kw(Range));
+token!(kw_return, Kw(Return));
+token!(kw_select, Kw(Select));
+token!(kw_struct, Kw(Struct));
+token!(kw_switch, Kw(Switch));
+token!(kw_type, Kw(Type));
+token!(kw_var, Kw(Var));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
