@@ -34,6 +34,8 @@ fn string_literal(tokens: &[Token]) -> IResult<usize> {
         need_more(tokens, Needed::Size(1))
     } else if let Lit(InterpretedString(id)) = tokens[0] {
         Ok((&tokens[1..], id))
+    } else if let Lit(RawString(id)) = tokens[0] {
+        Ok((&tokens[1..], id))
     } else {
         Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))
     }
@@ -214,7 +216,7 @@ named!(var_decl(&[Token]) -> Vec<VarSpec>, do_parse!(
     >> (specs)
 ));
 
-named!(pub parameters_spec(&[Token]) -> ParametersDecl, dbg!(do_parse!(
+named!(pub parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
        idents: separated_list!(comma, identifier)
     >> ddd: opt!(dot_dot_dot)
     >> ty: ty
@@ -224,7 +226,7 @@ named!(pub parameters_spec(&[Token]) -> ParametersDecl, dbg!(do_parse!(
         dotdotdot: ddd.is_some(),
         ty
     })
-)));
+));
 
 named!(parameters_decl(&[Token]) -> Vec<ParametersDecl>, do_parse!(
         open_paren
@@ -386,7 +388,8 @@ named!(expr_switch(&[Token]) -> Statement, do_parse!(
                map!(tuple!(apply!(token, Kw(Case)), expression_list), |(_, i)| Some(i))
            )
         >> colon
-        >> statements: separated_list!(comma, stmt)
+        >> statements: separated_list!(semicolon, stmt)
+        >> semicolon
         >> (ExprSwitchCase { expressions, statements })
     ))
     >> close_brace
@@ -414,7 +417,8 @@ named!(type_switch(&[Token]) -> Statement, do_parse!(
                map!(tuple!(apply!(token, Kw(Case)), separated_nonempty_list!(comma, ty)), |(_, i)| Some(i))
            )
         >> colon
-        >> statements: separated_list!(comma, stmt)
+        >> statements: separated_list!(semicolon, stmt)
+        >> semicolon
         >> (TypeSwitchCase { type_list, statements })
     ))
     >> close_brace

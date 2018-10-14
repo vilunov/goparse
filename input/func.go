@@ -1,5 +1,8 @@
-package fun;
+package kek
 
 
-func ReadXML(io.Reader, protocol.DeviceID) {
+func (cfg *Configuration) clean() error {
+
+	return nil
 }
+

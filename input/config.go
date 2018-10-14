@@ -83,7 +83,7 @@ func New(myID protocol.DeviceID) Configuration {
 	return cfg
 }
 
-func ReadXML(r io.Reader, myID protocol.DeviceID) (Configuration, error) {
+func ReadXML(r io.Reader, myID protocol.DeviceID) (c Configuration, e error) {
 	var cfg Configuration
 
 	util.SetDefaults(&cfg)
@@ -101,7 +101,7 @@ func ReadXML(r io.Reader, myID protocol.DeviceID) (Configuration, error) {
 	return cfg, nil
 }
 
-func ReadJSON(r io.Reader, myID protocol.DeviceID) (Configuration, error) {
+func ReadJSON(r io.Reader, myID protocol.DeviceID) (c Configuration, e error) {
 	var cfg Configuration
 
 	util.SetDefaults(&cfg)
@@ -196,7 +196,6 @@ func (cfg *Configuration) prepare(myID protocol.DeviceID) error {
 		Name:     myName,
 	})
 
-found:
 
 	if err := cfg.clean(); err != nil {
 		return err
@@ -305,15 +304,6 @@ func (cfg *Configuration) clean() error {
 	// - free from duplicates
 	// - sorted by ID
 	cfg.Devices = ensureNoDuplicateDevices(cfg.Devices)
-	sort.Slice(cfg.Devices, func(a, b int) bool {
-		return cfg.Devices[a].DeviceID.Compare(cfg.Devices[b].DeviceID) == -1
-	})
-
-	// Ensure that the folder list is sorted by ID
-	sort.Slice(cfg.Folders, func(a, b int) bool {
-		return cfg.Folders[a].ID < cfg.Folders[b].ID
-	})
-
 	// Ensure that in all folder configs
 	// - any loose devices are not present in the wrong places
 	// - there are no duplicate devices
@@ -325,9 +315,6 @@ func (cfg *Configuration) clean() error {
 		if cfg.Folders[i].Versioning.Params == nil {
 			cfg.Folders[i].Versioning.Params = map[string]string{}
 		}
-		sort.Slice(cfg.Folders[i].Devices, func(a, b int) bool {
-			return cfg.Folders[i].Devices[a].DeviceID.Compare(cfg.Folders[i].Devices[b].DeviceID) == -1
-		})
 		for _, dev := range cfg.Folders[i].Devices {
 			sharedFolders[dev.DeviceID] = append(sharedFolders[dev.DeviceID], cfg.Folders[i].ID)
 		}
@@ -360,14 +347,8 @@ func (cfg *Configuration) clean() error {
 
 	// The list of pending devices should not contain devices that were added manually, nor should it contain
 	// ignored devices.
-
-	// Sort by time, so that in case of duplicates latest "time" is used.
-	sort.Slice(cfg.PendingDevices, func(i, j int) bool {
-		return cfg.PendingDevices[i].Time.Before(cfg.PendingDevices[j].Time)
-	})
-
 	var newPendingDevices []ObservedDevice
-nextPendingDevice:
+
 	for _, pendingDevice := range cfg.PendingDevices {
 		if !existingDevices[pendingDevice.ID] && !ignoredDevices[pendingDevice.ID] {
 			// Deduplicate
@@ -755,7 +736,6 @@ func ensureDevicePresent(devices []FolderDeviceConfiguration, myID protocol.Devi
 func ensureExistingDevices(devices []FolderDeviceConfiguration, existingDevices map[protocol.DeviceID]bool) []FolderDeviceConfiguration {
 	count := len(devices)
 	i := 0
-loop:
 	for i < count {
 		if _, ok := existingDevices[devices[i].DeviceID]; !ok {
 			devices[i] = devices[count-1]
@@ -771,7 +751,6 @@ func ensureNoDuplicateFolderDevices(devices []FolderDeviceConfiguration) []Folde
 	count := len(devices)
 	i := 0
 	seenDevices := make(map[protocol.DeviceID]bool)
-loop:
 	for i < count {
 		id := devices[i].DeviceID
 		if _, ok := seenDevices[id]; ok {
@@ -789,7 +768,6 @@ func ensureNoDuplicateDevices(devices []DeviceConfiguration) []DeviceConfigurati
 	count := len(devices)
 	i := 0
 	seenDevices := make(map[protocol.DeviceID]bool)
-loop:
 	for i < count {
 		id := devices[i].DeviceID
 		if _, ok := seenDevices[id]; ok {
@@ -801,26 +779,6 @@ loop:
 		i++
 	}
 	return devices[0:count]
-}
-
-func cleanSymlinks(filesystem fs.Filesystem, dir string) {
-	if runtime.GOOS == "windows" {
-		// We don't do symlinks on Windows. Additionally, there may
-		// be things that look like symlinks that are not, which we
-		// should leave alone. Deduplicated files, for example.
-		return
-	}
-	filesystem.Walk(dir, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsSymlink() {
-			l.Infoln("Removing incorrectly versioned symlink", path)
-			filesystem.Remove(path)
-			return fs.SkipDir
-		}
-		return nil
-	})
 }
 
 // filterURLSchemePrefix returns the list of addresses after removing all
