@@ -8,6 +8,7 @@ use syntax::helpers::*;
 use syntax::{identifier, full_identifier, literal, ty};
 
 named!(primary_expression_inner(&[Token]) -> PrimaryExprInner, alt!(
+    map!(composite_literal, PrimaryExprInner::CompositeLiteral) |
     map!(tuple!(open_paren, expression, close_paren),
          |(_, i, _)| PrimaryExprInner::Parenthesis(Box::new(i))) |
     do_parse!(
@@ -65,20 +66,59 @@ named!(primary_expression_modifier(&[Token]) -> PrimaryExprMod, alt!(
     do_parse!(
            open_paren
         >> ty: ty
-        >> expr: tuple!(comma, separated_list!(comma, expression))
+        >> expr: opt!(map!(tuple!(comma, expression_list), |(_, i)| i))
         >> dots: opt!(dot_dot_dot)
+        >> opt!(comma)
         >> close_paren
 
-        >> (PrimaryExprMod::TypeCall { ty, expressions: expr.1, dotdotdot: dots.is_some() })
+        >> (PrimaryExprMod::TypeCall {
+            ty,
+            expressions: expr.unwrap_or(vec![]),
+            dotdotdot: dots.is_some()
+        })
     ) |
     do_parse!(
            open_paren
-        >> expressions: separated_nonempty_list!(comma, expression)
+        >> expressions: expression_list
         >> dots: opt!(dot_dot_dot)
+        >> opt!(comma)
         >> close_paren
 
         >> (PrimaryExprMod::Call { expressions, dotdotdot: dots.is_some() })
     )
+));
+
+named!(expr_or_literal_value(&[Token]) -> ExprOrLiteralValue, alt!(
+    map!(expression, ExprOrLiteralValue::Expression) |
+    map!(literal_value, ExprOrLiteralValue::LiteralValue)
+));
+
+named!(literal_value(&[Token]) -> Vec<LiteralElement>, do_parse!(
+       open_brace
+    >> values: map!(opt!(tuple!(separated_nonempty_list!(comma, literal_element), opt!(comma))),
+                    |i| i.map(|(j, _)| j).unwrap_or(vec![]))
+    >> close_brace
+
+    >> (values)
+));
+
+named!(literal_element(&[Token]) -> LiteralElement, do_parse!(
+       key: opt!(map!(tuple!(expr_or_literal_value, colon), |(i, _)| i))
+    >> element: expr_or_literal_value
+
+    >> (LiteralElement { key, element })
+));
+
+named!(composite_literal(&[Token]) -> CompositeLiteral, do_parse!(
+       start: opt!(tuple!(open_bracket, dot_dot_dot, close_bracket))
+    >> ty: ty
+    >> value: literal_value
+
+    >> (CompositeLiteral {
+        strange_things: start.is_some(),
+        ty,
+        value,
+    })
 ));
 
 named!(unary_expression(&[Token]) -> UnaryExpression, do_parse!(

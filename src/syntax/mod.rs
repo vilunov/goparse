@@ -62,7 +62,7 @@ named!(pub full_identifier(&[Token]) -> FullIdentifier, alt!(
     map!(identifier, FullIdentifier::Unqualified)
 ));
 
-named!(ty(&[Token]) -> Ty, alt!(
+named!(pub ty(&[Token]) -> Ty, alt!(
     map!(full_identifier, Ty::TypeName) |
     do_parse!(
            open_bracket
@@ -73,7 +73,7 @@ named!(ty(&[Token]) -> Ty, alt!(
         >> (Ty::Array { length: length.map(Box::new), elements: Box::new(elems) })
     ) |
     do_parse!(
-           apply!(token, Kw(Map))
+           kw_map
         >> open_bracket
         >> keys: ty
         >> close_bracket
@@ -171,7 +171,6 @@ named!(const_spec(&[Token]) -> ConstSpec, do_parse!(
 named!(const_decl(&[Token]) -> Vec<ConstSpec>, do_parse!(
        apply!(token, Kw(Const))
     >> specs: call!(one_or_many, &const_spec)
-    >> semicolon
 
     >> (specs)
 ));
@@ -186,8 +185,7 @@ named!(type_spec(&[Token]) -> TypeSpec, do_parse!(
 
 named!(type_decl(&[Token]) -> Vec<TypeSpec>, do_parse!(
        apply!(token, Kw(Type))
-    >> specs: call!(one_or_many, &type_spec)
-    >> semicolon
+    >> specs: apply!(one_or_many, &type_spec)
 
     >> (specs)
 ));
@@ -211,24 +209,26 @@ named!(var_spec(&[Token]) -> VarSpec, do_parse!(
 
 named!(var_decl(&[Token]) -> Vec<VarSpec>, do_parse!(
        apply!(token, Kw(Var))
-    >> specs: call!(one_or_many, &var_spec)
-    >> semicolon
+    >> specs: apply!(one_or_many, &var_spec)
 
     >> (specs)
 ));
 
-named!(parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
-        idents: identifier_list
-    >>  ddd: opt!(dot_dot_dot)
-    >>  i: ty
+named!(pub parameters_spec(&[Token]) -> ParametersDecl, dbg!(do_parse!(
+       idents: separated_list!(comma, identifier)
+    >> ddd: opt!(dot_dot_dot)
+    >> ty: ty
 
-    >> (ParametersDecl { idents, dotdotdot: ddd.is_some(), ty: i })
-));
+    >> (ParametersDecl {
+        idents,
+        dotdotdot: ddd.is_some(),
+        ty
+    })
+)));
 
 named!(parameters_decl(&[Token]) -> Vec<ParametersDecl>, do_parse!(
         open_paren
     >>  parameters: separated_list!(comma, &parameters_spec)
-    >>  opt!(comma)
     >>  close_paren
 
     >> (parameters)
@@ -236,8 +236,8 @@ named!(parameters_decl(&[Token]) -> Vec<ParametersDecl>, do_parse!(
 
 named!(pub signature(&[Token]) -> Signature, do_parse!(
         params: parameters_decl
-    >>  result: opt!(alt!(map!(parameters_decl, SignatureResult::Params)
-                        | map!(ty, SignatureResult::TypeResult)))
+    >>  result: opt!(alt!(map!(ty, SignatureResult::TypeResult)
+                        | map!(parameters_decl, SignatureResult::Params)))
 
     >> (Signature { params, result: result.map(Box::new) })
 ));
@@ -247,9 +247,9 @@ named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
     >> receiver: opt!(parameters_decl)
     >> name: identifier
     >> signature: signature
-    >> semicolon
+    >> body: opt!(block)
 
-    >> (FuncDecl { name, receiver,  signature })
+    >> (FuncDecl { name, receiver, signature, body })
 ));
 
 named!(decl(&[Token]) -> Declaration,
@@ -258,10 +258,13 @@ named!(decl(&[Token]) -> Declaration,
         |map!(type_decl, Declaration::TypeDecl)
 ));
 
-named!(top_level_decl(&[Token]) -> TopLevelDecl,
-    alt!(map!(decl, TopLevelDecl::Decl)
-        |map!(func_decl, TopLevelDecl::Function))
-);
+named!(top_level_decl(&[Token]) -> TopLevelDecl, do_parse!(
+       stuff: alt!(map!(decl, TopLevelDecl::Decl)
+                 | map!(func_decl, TopLevelDecl::Function))
+    >> semicolon
+
+    >> (stuff)
+));
 
 named!(simple_stmt(&[Token]) -> SimpleStatement, alt!(
        do_parse!(
@@ -273,7 +276,7 @@ named!(simple_stmt(&[Token]) -> SimpleStatement, alt!(
        ) |
        do_parse!(
                 identifiers: identifier_list
-             >> apply!(token, Punc(ColonAssign))
+             >> colon_assign
              >> expressions: expression_list
 
              >> (SimpleStatement::ShortVarStmt { identifiers, expressions })
@@ -321,7 +324,6 @@ named!(stmt(&[Token]) -> Statement, alt!(
 ));
 
 named!(for_clause(&[Token]) -> ForClause, alt!(
-    map!(expression, |i| ForClause::Condition(Box::new(i))) |
     do_parse!(
            init: opt!(simple_stmt) >> semicolon
         >> condition: opt!(expression) >> semicolon
@@ -344,7 +346,8 @@ named!(for_clause(&[Token]) -> ForClause, alt!(
         >> range: expression
         >> (ForClause::RangeIdents { identifiers, range: Box::new(range) })
     ) |
-    map!(tuple!(kw_range, expression), |(_, i)| ForClause::Range(Box::new(i)))
+    map!(tuple!(kw_range, expression), |(_, i)| ForClause::Range(Box::new(i))) |
+    map!(expression, |i| ForClause::Condition(Box::new(i)))
 ));
 
 named!(if_statement(&[Token]) -> IfStmt, do_parse!(

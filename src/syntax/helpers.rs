@@ -53,12 +53,13 @@ pub fn unary_op(i: &[Token]) -> IResult<UnaryOp> {
     }
 }
 
-pub fn assign_op(i: &[Token]) -> IResult<BinaryOp> {
+pub fn assign_op(i: &[Token]) -> IResult<Option<BinaryOp>> {
     if i.len() < 1 {
         need_more(i, Needed::Size(1))
     } else {
         match i[0] {
-            BinOpAssign(x) => Ok(((&i[1..], x))),
+            BinOpAssign(x) => Ok((&i[1..], Some(x))),
+            Punc(Assign) =>         Ok((&i[1..], None)),
             _ => Err(ParseError::Error(Context::Code(i, ErrorKind::Tag))),
         }
     }

@@ -103,6 +103,25 @@ pub enum MethodSpec {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct CompositeLiteral {
+    pub strange_things: bool,
+    pub ty: Ty,
+    pub value: Vec<LiteralElement>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum ExprOrLiteralValue {
+    Expression(Expression),
+    LiteralValue(Vec<LiteralElement>),
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct LiteralElement {
+    pub key: Option<ExprOrLiteralValue>,
+    pub element: ExprOrLiteralValue,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum Ty {
     TypeName(FullIdentifier),
     Array {
@@ -245,7 +264,7 @@ pub enum SimpleStatement {
     DecStmt(Expression),
     AssignStmt {
         left: Vec<Expression>,
-        op: types::BinaryOp,
+        op: Option<types::BinaryOp>,
         right: Vec<Expression>,
     },
     ShortVarStmt {
@@ -274,6 +293,7 @@ pub enum PrimaryExprInner {
         receiver: Ty,
         method_identifier: usize,
     },
+    CompositeLiteral(CompositeLiteral),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -337,7 +357,8 @@ pub struct FuncDecl {
     pub name: usize,
     pub receiver: Option<Vec<ParametersDecl>>,
     #[serde(flatten)]
-    pub signature: Signature
+    pub signature: Signature,
+    pub body: Option<Block>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
