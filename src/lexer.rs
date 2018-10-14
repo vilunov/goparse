@@ -276,6 +276,18 @@ impl<'a> LexerInner<'a> {
                     self.skip_chars(is_octal_digit);
                     match self.cur {
                         Some((_, '.')) => return self.process_after_dot(idx_start),
+                        Some((_, x)) if is_decimal_digit(x) => {
+                            self.adv();
+                            let idx = self.process_decimals();
+                            match self.cur {
+                                Some((_, '.')) => return self.process_after_dot(idx_start),
+                                Some((_, 'e')) | Some((_, 'E')) => {
+                                    let idx = self.process_exponent()?;
+                                    return Ok(Some(Float(self.input[idx_start..idx].to_string())));
+                                }
+                                _ => return Err(Error::TokenizingError),
+                            }
+                        }
                         Some((idx, _)) => {
                             return Ok(Some(Octal(self.input[idx_start + 1..idx].to_string())))
                         }
