@@ -95,3 +95,7 @@ named!(pub expression(&[Token]) -> Expression, do_parse!(
 
     >> (Expression { head, tail })
 ));
+
+named!(pub expression_list(&[Token]) -> Vec<Expression>,
+    separated_nonempty_list!(comma, expression)
+);

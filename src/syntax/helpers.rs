@@ -92,3 +92,4 @@ token!(colon, Punc(Colon));
 token!(dot_dot_dot, Punc(DotDotDot));
 token!(star, BinOp(Multiply));
 token!(left_arrow, Punc(LeftArrow));
+token!(assign, Punc(Assign));

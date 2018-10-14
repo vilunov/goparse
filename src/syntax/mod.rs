@@ -23,6 +23,10 @@ fn identifier(tokens: &[Token]) -> IResult<usize> {
     }
 }
 
+named!(identifier_list(&[Token]) -> Vec<usize>,
+    separated_nonempty_list!(comma, identifier)
+);
+
 fn string_literal(tokens: &[Token]) -> IResult<usize> {
     if tokens.len() < 1 {
         need_more(tokens, Needed::Size(1))
@@ -134,10 +138,8 @@ named!(import_decl(&[Token]) -> Vec<ImportSpec>, do_parse!(
 ));
 
 named!(const_spec(&[Token]) -> ConstSpec, do_parse!(
-       identifiers: separated_nonempty_list!(comma, identifier)
-    >> right_side: opt!(map!(tuple!(opt!(ty),
-                                    apply!(token, Punc(Punctuation::Assign)),
-                                    separated_nonempty_list!(comma, expression)),
+       identifiers: identifier_list
+    >> right_side: opt!(map!(tuple!(opt!(ty), assign, expression_list),
                              |(i, _, j)| ConstSpecRightSide { ty: i, expressions: j }))
 
     >> (ConstSpec { identifiers, right_side })
@@ -153,7 +155,7 @@ named!(const_decl(&[Token]) -> Vec<ConstSpec>, do_parse!(
 
 named!(type_spec(&[Token]) -> TypeSpec, do_parse!(
        identifier: identifier
-    >> opt!(apply!(token, Punc(Punctuation::Assign)))
+    >> opt!(assign)
     >> ty: ty
 
     >> (TypeSpec { identifier, ty } )
@@ -168,20 +170,19 @@ named!(type_decl(&[Token]) -> Vec<TypeSpec>, do_parse!(
 ));
 
 named!(var_spec(&[Token]) -> VarSpec, do_parse!(
-       identifiers: separated_nonempty_list!(comma, identifier)
+       identifiers: identifier_list
     >> right_side: opt!(alt!(
             do_parse!(
                     ty: ty
-                 >> expression: opt!(map!(tuple!(
-                                        apply!(token, Punc(Punctuation::Assign)),
-                                        separated_nonempty_list!(comma, expression)),
-                                        |(_, v)| v))
+                 >> expression: opt!(map!(tuple!(assign, expression_list),
+                                          |(_, v)| v))
                  >> (VarRightSide::WithType { ty, expression} )
             ) |
-            map!(tuple!(
-                apply!(token, Punc(Punctuation::Assign)),
-                separated_nonempty_list!(comma, expression)),
-                |(_, v)| VarRightSide::WithoutType(v))))
+            map!(
+                tuple!(assign, expression_list),
+                |(_, v)| VarRightSide::WithoutType(v)
+            )
+    ))
     >> (VarSpec { identifiers, right_side })
 ));
 
@@ -194,7 +195,7 @@ named!(var_decl(&[Token]) -> Vec<VarSpec>, do_parse!(
 ));
 
 named!(parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
-        idents: separated_nonempty_list!(comma, identifier)
+        idents: identifier_list
     >>  ddd: opt!(dot_dot_dot)
     >>  i: ty
 
