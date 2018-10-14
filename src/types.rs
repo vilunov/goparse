@@ -37,6 +37,7 @@ impl Keyword {
             "const" => Some(Keyword::Const),
             "import" => Some(Keyword::Import),
             "package" => Some(Keyword::Package),
+            "func" => Some(Keyword::Func),
             _ => None,
         }
     }

@@ -46,3 +46,4 @@ token!(dot, Punc(Dot));
 token!(comma, Punc(Comma));
 token!(open_paren, Punc(Left(Parenthesis)));
 token!(close_paren, Punc(Right(Parenthesis)));
+token!(dot_dot_dot, Punc(DotDotDot));

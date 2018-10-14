@@ -94,8 +94,43 @@ named!(const_decl(&[Token]) -> Vec<ConstSpec>, do_parse!(
     >> (specs)
 ));
 
+named!(parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
+        idents: separated_nonempty_list!(comma, identifier)
+    >>  ddd: opt!(dot_dot_dot)
+    >>  i: ty
+
+    >> (ParametersDecl { idents, dotdotdot: ddd.is_some(), ty: i })
+));
+
+named!(parameters_decl(&[Token]) -> Vec<ParametersDecl>, do_parse!(
+        open_paren
+    >>  parameters: separated_list!(comma, &parameters_spec)
+    >>  opt!(comma)
+    >>  close_paren
+
+    >> (parameters)
+));
+
+named!(signature(&[Token]) -> Signature, do_parse!(
+        params: parameters_decl
+    >>  result: opt!(alt!(map!(parameters_decl, SignatureResult::Params)
+                        | map!(ty, SignatureResult::TypeResult)))
+
+    >> (Signature { params, result })
+));
+
+named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
+       apply!(token, Kw(Func))
+    >> name: identifier
+    >> signature: signature
+    >> semicolon
+
+    >> (FuncDecl { name, signature })
+));
+
 named!(top_level_decl(&[Token]) -> TopLevelDecl,
-    map!(const_decl, TopLevelDecl::Consts)
+    alt!(map!(const_decl, TopLevelDecl::Consts)
+        |map!(func_decl, TopLevelDecl::Functions))
 );
 
 named!(pub program(&[Token]) -> Program, do_parse!(

@@ -39,6 +39,7 @@ pub struct ConstSpec {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum TopLevelDecl {
     Consts(Vec<ConstSpec>),
+    Functions(FuncDecl),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -101,3 +102,30 @@ pub struct PrimaryExpr {
     pub inner: PrimaryExprInner,
     pub mods: Vec<PrimaryExprMod>,
 }
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct Signature {
+    pub params: Vec<ParametersDecl>,
+    pub result: Option<SignatureResult>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum SignatureResult {
+    Params(Vec<ParametersDecl>),
+    TypeResult(Ty)
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct ParametersDecl {
+    pub idents: Vec<usize>,
+    pub dotdotdot: bool,
+    pub ty: Ty,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct FuncDecl {
+    pub name: usize,
+    pub signature: Signature
+}
+
+

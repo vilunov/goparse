@@ -43,11 +43,14 @@ fn main() {
                 your;
                 health;
             )
+
+            func blea(a int) bool
             "#,
         ).unwrap()
         .collect();
     let idents = idents.identifiers();
     let string_literals = string_literals.literals();
+    println!("{:?}\n{:?}", &idents, &string_literals);
     let (remainder, ast) = syntax::program(&res[..]).unwrap();
     assert_eq!(remainder, &[]);
     let j = CompleteOutput {
