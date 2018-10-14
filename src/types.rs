@@ -39,6 +39,7 @@ impl Keyword {
             "package" => Some(Keyword::Package),
             "func" => Some(Keyword::Func),
             "type" => Some(Keyword::Type),
+            "var" => Some(Keyword::Var),
             _ => None,
         }
     }

@@ -118,6 +118,32 @@ named!(type_decl(&[Token]) -> Vec<TypeSpec>, do_parse!(
     >> (specs)
 ));
 
+named!(var_spec(&[Token]) -> VarSpec, do_parse!(
+       identifiers: separated_nonempty_list!(comma, identifier)
+    >> right_side: opt!(alt!(
+            do_parse!(
+                    ty: ty
+                 >> expression: opt!(map!(tuple!(
+                                        apply!(token, Punc(Punctuation::Assign)),
+                                        separated_nonempty_list!(comma, expression)),
+                                        |(_, v)| v))
+                 >> (VarRightSide::WithType { ty, expression} )
+            ) |
+            map!(tuple!(
+                apply!(token, Punc(Punctuation::Assign)),
+                separated_nonempty_list!(comma, expression)),
+                |(_, v)| VarRightSide::WithoutType(v))))
+    >> (VarSpec { identifiers, right_side })
+));
+
+named!(var_decl(&[Token]) -> Vec<VarSpec>, do_parse!(
+       apply!(token, Kw(Var))
+    >> specs: call!(one_or_many, &var_spec)
+    >> semicolon
+
+    >> (specs)
+));
+
 named!(parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
         idents: separated_nonempty_list!(comma, identifier)
     >>  ddd: opt!(dot_dot_dot)
@@ -154,6 +180,7 @@ named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
 
 named!(top_level_decl(&[Token]) -> TopLevelDecl,
     alt!(map!(const_decl, TopLevelDecl::Consts)
+        |map!(var_decl, TopLevelDecl::Vars)
         |map!(func_decl, TopLevelDecl::Function)
         |map!(type_decl, TopLevelDecl::Types))
 );

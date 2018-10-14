@@ -51,6 +51,8 @@ fn main() {
                 net = [1]string
             )
 
+            var kek = 10
+
             func blea(a int) bool
             "#,
         ).unwrap()

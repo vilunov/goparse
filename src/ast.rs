@@ -64,9 +64,25 @@ pub struct TypeSpec {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct VarSpec {
+    pub identifiers: Vec<usize>,
+    pub right_side: Option<VarRightSide>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum VarRightSide {
+    WithType {
+        ty: Ty,
+        expression: Option<Vec<Expression>>
+    },
+    WithoutType(Vec<Expression>)
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum TopLevelDecl {
     Consts(Vec<ConstSpec>),
     Types(Vec<TypeSpec>),
+    Vars(Vec<VarSpec>),
     Function(FuncDecl),
 }
 
