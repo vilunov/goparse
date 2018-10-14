@@ -175,10 +175,33 @@ pub enum Statement {
         guard: TypeSwitchGuard,
         clauses: Vec<TypeSwitchCase>,
     },
+    SelectStmt(Vec<SelectClause>),
     Defer(Expression),
     For {
         clause: ForClause,
         body: Block,
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct SelectClause {
+    pub comm_case: Option<CommCase>,
+    pub statements: Vec<Statement>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum CommCase {
+    SendStmt {
+        left: Expression,
+        right: Expression,
+    },
+    RecvExprStmt {
+        list: Vec<Expression>,
+        expr: Expression,
+    },
+    RecvIdentsStmt {
+        list: Vec<usize>,
+        expr: Expression,
     }
 }
 

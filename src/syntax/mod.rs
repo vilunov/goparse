@@ -419,6 +419,40 @@ named!(type_switch(&[Token]) -> Statement, do_parse!(
     >> (Statement::TypeSwitchStmt { simple, guard, clauses })
 ));
 
+named!(select_stmt(&[Token]) -> Statement, do_parse!(
+       kw_select
+    >> open_brace
+    >> clauses: many0!(do_parse!(
+            comm_case: alt!(
+                 map!(tuple!(
+                        kw_case,
+                        expression,
+                        apply!(token, Punc(LeftArrow)),
+                        expression),
+                 |(_, left, _, right)| Some(CommCase::SendStmt { left, right })) |
+                 map!(tuple!(
+                        kw_case,
+                        expression_list,
+                        assign,
+                        expression),
+                 |(_, list, _, expr)| Some(CommCase::RecvExprStmt { list, expr })) |
+                 map!(tuple!(
+                        kw_case,
+                        identifier_list,
+                        assign,
+                        expression),
+                 |(_, list, _, expr)| Some(CommCase::RecvIdentsStmt { list, expr})) |
+                 map!(kw_default, |_| None)
+            )
+        >> statements: separated_list!(comma, stmt)
+
+        >> (SelectClause { comm_case, statements })
+    ))
+    >> close_brace
+
+    >> (Statement::SelectStmt(clauses) )
+));
+
 named!(pub program(&[Token]) -> Program, do_parse!(
        apply!(token, Kw(Package))
     >> package: identifier
