@@ -44,7 +44,7 @@ impl Keyword {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize)]
 pub enum BinaryOp {
     /// `+`
     Plus,

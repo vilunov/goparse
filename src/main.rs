@@ -32,6 +32,7 @@ fn main() {
                 . "shrek"
             )
 
+            const shrek, kek = ^+1[:] + !1 && 2, 1[:1:2], i(i)(i), i(i, i)
             const shrek, kek int = int(32).kek, aye.smert[1[1]]
             const shrek; //dsadsaads
 

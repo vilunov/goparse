@@ -1,4 +1,4 @@
-pub use types::{Literal, Keyword};
+pub use types::{self, Literal, Keyword};
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct Program {
@@ -20,8 +20,23 @@ pub struct ImportSpec {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
-pub enum Expression {
-    Primary(PrimaryExpr),
+pub struct UnaryExpression {
+    pub ops: Vec<UnaryOp>,
+    pub primary: PrimaryExpr,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum BinaryOp {
+    BinOp(types::BinaryOp),
+    DoubleAnd, DoubleOr,
+    Equals, Le, Lt, Ge, Gt, Ne,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct Expression {
+    pub head: UnaryExpression,
+    pub tail: Vec<(BinaryOp, UnaryExpression)>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -108,6 +123,11 @@ pub enum PrimaryExprMod {
 pub struct PrimaryExpr {
     pub inner: PrimaryExprInner,
     pub mods: Vec<PrimaryExprMod>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum UnaryOp {
+    Plus, Minus, Bang, Hat, Multiply, And, LeftArrow
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
