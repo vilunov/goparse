@@ -123,6 +123,25 @@ pub enum Ty {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum ForClause {
+    Condition(Box<Expression>),
+    Clause {
+        init: Option<Box<SimpleStatement>>,
+        condition: Option<Box<Expression>>,
+        post: Option<Box<SimpleStatement>>,
+    },
+    Range(Box<Expression>),
+    RangeExpr {
+        expr: Vec<Expression>,
+        range: Box<Expression>,
+    },
+    RangeIdents {
+        identifiers: Vec<usize>,
+        range: Box<Expression>,
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct IfStmt {
     pub simple: Option<SimpleStatement>,
     pub expression: Expression,
@@ -157,6 +176,10 @@ pub enum Statement {
         clauses: Vec<TypeSwitchCase>,
     },
     Defer(Expression),
+    For {
+        clause: ForClause,
+        body: Block,
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]

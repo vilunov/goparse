@@ -48,7 +48,7 @@ fn write_file(path: &Path, input: &str) -> Result<(), Box<std::error::Error>> {
         match syntax::program(tokens.as_slice())
             .map_err(|_| types::Error::SyntaxParsingError)? {
             (&[], v) => v,
-            _ => return Err(Box::new(types::Error::TokenizingError)),
+            _ => return Err(Box::new(types::Error::SyntaxParsingError)),
         }
     };
     let path: &Path = path.strip_prefix(INPUT_FOLDER)?;
@@ -65,7 +65,7 @@ fn write_file(path: &Path, input: &str) -> Result<(), Box<std::error::Error>> {
 fn main() {
     let _ = create_dir(OUTPUT_FOLDER);
     for (path, input) in read_files(file_paths()) {
-        println!("{:?}", write_file(&path, &input));
+        println!("{:?} {:?}", path, write_file(&path, &input));
     }
 }
 

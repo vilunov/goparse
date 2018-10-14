@@ -452,9 +452,16 @@ impl<'a> LexerInner<'a> {
                                         return self.next_token()
                                     }
                                 }
+                                Some((_, '\n')) => {
+                                    self.adv();
+                                    newline_flag = true;
+                                },
                                 _ => ()
                             },
-                            Some((_, '\n')) => newline_flag = true,
+                            Some((_, '\n')) => {
+                                self.adv();
+                                newline_flag = true;
+                            },
                             _ => return Err(Error::TokenizingError)
                         }
                     }

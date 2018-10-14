@@ -169,19 +169,19 @@ test_simple!(
 
 test_simple!(
     comment_multi_line_1,
-    r"/*Drums, the never ending drums\n*/",
+    "/*Drums, the never ending drums\n*/",
     Vec::<Token>::new()
 );
 
 test_simple!(
     comment_multi_line_2,
-    r"/*Drums, the never ending drums\n*/20",
+    "/*Drums, the never ending drums\n*/20",
     vec![Lit(Decimal("20".to_string()))]
 );
 
 test_simple!(
     comment_multi_line_3,
-    r"/*Drums, the never ending drums*/20",
+    "/*Drums, the never ending drums*/20",
     vec![Lit(Decimal("20".to_string()))]
 );
 

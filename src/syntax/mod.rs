@@ -316,7 +316,35 @@ named!(stmt(&[Token]) -> Statement, alt!(
     map!(block, Statement::Block) |
     map!(if_statement, Statement::If) |
     expr_switch |
-    type_switch
+    type_switch |
+    map!(tuple!(kw_for, for_clause, block), |(_, clause, body)| Statement::For { clause, body })
+));
+
+named!(for_clause(&[Token]) -> ForClause, alt!(
+    map!(expression, |i| ForClause::Condition(Box::new(i))) |
+    do_parse!(
+           init: opt!(simple_stmt) >> semicolon
+        >> condition: opt!(expression) >> semicolon
+        >> post: opt!(simple_stmt)
+        >> (ForClause::Clause {
+            init: init.map(Box::new),
+            condition: condition.map(Box::new),
+            post: post.map(Box::new)
+        })
+    ) |
+    do_parse!(
+           expr: expression_list >> assign
+        >> kw_range
+        >> range: expression
+        >> (ForClause::RangeExpr { expr, range: Box::new(range) })
+    ) |
+    do_parse!(
+           identifiers: identifier_list >> colon_assign
+        >> kw_range
+        >> range: expression
+        >> (ForClause::RangeIdents { identifiers, range: Box::new(range) })
+    ) |
+    map!(tuple!(kw_range, expression), |(_, i)| ForClause::Range(Box::new(i)))
 ));
 
 named!(if_statement(&[Token]) -> IfStmt, do_parse!(
