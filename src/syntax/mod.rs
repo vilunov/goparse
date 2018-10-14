@@ -206,11 +206,12 @@ named!(pub signature(&[Token]) -> Signature, do_parse!(
 
 named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
        apply!(token, Kw(Func))
+    >> receiver: opt!(parameters_decl)
     >> name: identifier
     >> signature: signature
     >> semicolon
 
-    >> (FuncDecl { name, signature })
+    >> (FuncDecl { name, receiver,  signature })
 ));
 
 named!(top_level_decl(&[Token]) -> TopLevelDecl,

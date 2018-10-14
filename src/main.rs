@@ -57,6 +57,7 @@ fn main() {
             var kek = 10
 
             func blea(a int) bool
+            func (p *Point) blea(a int) bool
             "#,
         ).unwrap()
         .collect();

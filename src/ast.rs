@@ -187,6 +187,7 @@ pub struct ParametersDecl {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct FuncDecl {
     pub name: usize,
+    pub receiver: Option<Vec<ParametersDecl>>,
     #[serde(flatten)]
     pub signature: Signature
 }
