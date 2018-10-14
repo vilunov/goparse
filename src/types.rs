@@ -124,7 +124,7 @@ pub enum Punctuation {
     Semicolon,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, Serialize)]
 pub enum Literal {
     /// Decimal integer literal, i.e. `1972`
     Decimal(String),

@@ -32,11 +32,11 @@ fn main() {
                 . "shrek"
             )
 
-            const kek
+            const kek int = 32
             const shrek;
 
             const (
-                autism, sdada
+                autism, sdada int = 32
                 is
                 good
                 for;
