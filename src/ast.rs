@@ -26,7 +26,6 @@ pub struct UnaryExpression {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
-#[serde(untagged)]
 pub enum BinaryOp {
     BinOp(types::BinaryOp),
     DoubleAnd, DoubleOr,
@@ -34,9 +33,15 @@ pub enum BinaryOp {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct OpExpression {
+    pub op: BinaryOp,
+    pub expression: UnaryExpression,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct Expression {
     pub head: UnaryExpression,
-    pub tail: Vec<(BinaryOp, UnaryExpression)>,
+    pub tail: Vec<OpExpression>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -48,6 +53,7 @@ pub struct ConstSpecRightSide {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct ConstSpec {
     pub identifiers: Vec<usize>,
+    #[serde(flatten)]
     pub right_side: Option<ConstSpecRightSide>,
 }
 
@@ -76,6 +82,10 @@ pub enum FullIdentifier {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum Ty {
     TypeName(FullIdentifier),
+    Array {
+        length: Box<Expression>,
+        elements: Box<Ty>,
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -152,6 +162,7 @@ pub struct ParametersDecl {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct FuncDecl {
     pub name: usize,
+    #[serde(flatten)]
     pub signature: Signature
 }
 

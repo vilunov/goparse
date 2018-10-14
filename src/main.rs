@@ -48,6 +48,7 @@ fn main() {
             type (
                 ebal = int
                 kek = string
+                net = [1]string
             )
 
             func blea(a int) bool

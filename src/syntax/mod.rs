@@ -57,7 +57,15 @@ named!(pub full_identifier(&[Token]) -> FullIdentifier, alt!(
 ));
 
 named!(ty(&[Token]) -> Ty, alt!(
-    map!(full_identifier, Ty::TypeName)
+    map!(full_identifier, Ty::TypeName) |
+    do_parse!(
+           open_bracket
+        >> length: expression
+        >> close_bracket
+        >> elems: ty
+
+        >> (Ty::Array { length: Box::new(length), elements: Box::new(elems) })
+    )
 ));
 
 named!(import_spec(&[Token]) -> ImportSpec, do_parse!(

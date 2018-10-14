@@ -90,7 +90,8 @@ named!(unary_expression(&[Token]) -> UnaryExpression, do_parse!(
 
 named!(pub expression(&[Token]) -> Expression, do_parse!(
        head: unary_expression
-    >> tail: many0!(tuple!(binary_op, unary_expression))
+    >> tail: many0!(map!(tuple!(binary_op, unary_expression),
+                         |(op, expression)| OpExpression { op, expression } ))
 
     >> (Expression { head, tail })
 ));
