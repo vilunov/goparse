@@ -8,6 +8,10 @@ This is the delivery for the third homework assignment of Compilers Construction
 - Ivan Lyagaev
 - 4 Red Bull cans, 6 cups of coffee and a lot of "free" time 
 
+## BNF
+
+Can be founded [here](https://golang.org/ref/spec)
+
 ## Usage
 
 - Place the source of your program in file `in.txt`
