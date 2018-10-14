@@ -22,7 +22,7 @@ named!(primary_expression_inner(&[Token]) -> PrimaryExprInner, alt!(
     map!(literal, PrimaryExprInner::Literal)
 ));
 
-named!(primary_expression(&[Token]) -> PrimaryExpr, do_parse!(
+named!(pub primary_expression(&[Token]) -> PrimaryExpr, do_parse!(
        inner: primary_expression_inner >> mods: many0!(primary_expression_modifier)
     >> (PrimaryExpr { inner, mods })
 ));

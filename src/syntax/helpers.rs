@@ -114,7 +114,7 @@ token!(ge, Punc(Ge));
 token!(gt, Punc(Gt));
 token!(ne, Punc(Ne));
 token!(bang, Punc(Bang));
-token!(collon_assign, Punc(ColonAssign));
+token!(colon_assign, Punc(ColonAssign));
 token!(assign, Punc(Assign));
 
 token!(kw_break, Kw(Break));

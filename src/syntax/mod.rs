@@ -22,6 +22,7 @@ fn identifier(tokens: &[Token]) -> IResult<usize> {
     } else {
         Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))
     }
+
 }
 
 named!(identifier_list(&[Token]) -> Vec<usize>,
@@ -272,34 +273,123 @@ named!(simple_stmt(&[Token]) -> SimpleStatement, alt!(
        ) |
        do_parse!(
                 identifiers: identifier_list
-             >> apply!(token, Punc(Colon))
-             >> apply!(token, Punc(Assign))
+             >> apply!(token, Punc(ColonAssign))
              >> expressions: expression_list
 
              >> (SimpleStatement::ShortVarStmt { identifiers, expressions })
-       ) | alt!(do_parse!(
-                        left: expression
-                     >> apply!(token, Punc(LeftArrow))
-                     >> right: expression
+       ) |
+       do_parse!(
+              left: expression
+           >> apply!(token, Punc(LeftArrow))
+           >> right: expression
 
-                     >> (SimpleStatement::SendStmt { left, right } )
-                ) |
-                do_parse!(
-                        left: expression
-                     >> alt!(apply!(token, Punc(Increment)) | apply!(token, Punc(Decrement)))
-
-                     >> (SimpleStatement::IncDecStmt(left))
-                ) |
-                do_parse!(
-                        left: expression
-                     >> (SimpleStatement::Expr(left))
-                ))
+           >> (SimpleStatement::SendStmt { left, right } )
+       ) |
+       do_parse!(
+              left: expression >> apply!(token, Punc(Increment))
+           >> (SimpleStatement::IncStmt(left))
+       ) |
+       do_parse!(
+              left: expression >> apply!(token, Punc(Decrement))
+           >> (SimpleStatement::DecStmt(left))
+       ) |
+       map!(expression, SimpleStatement::Expr)
 ));
 
-named!(stmt(&[Token]) -> Statement,
-    alt!(map!(decl, Statement::Decl)
-        |map!(simple_stmt, Statement::Simple))
-);
+named!(stmt(&[Token]) -> Statement, alt!(
+    map!(decl, Statement::Decl) |
+    map!(simple_stmt, Statement::Simple) |
+    do_parse!(
+           label: identifier
+        >> colon
+        >> stmt: stmt
+        >> (Statement::Labeled { label, statement: Box::new(stmt) })
+    ) |
+    map!(tuple!(apply!(token, Kw(Go)), expression), |(_, i)| Statement::Go(i)) |
+    map!(tuple!(apply!(token, Kw(Defer)), expression), |(_, i)| Statement::Defer(i)) |
+    map!(tuple!(apply!(token, Kw(Return)), separated_list!(comma, expression)),
+         |(_, i)| Statement::Return(i)) |
+    map!(tuple!(apply!(token, Kw(Break)), opt!(identifier)), |(_, i)| Statement::Break(i)) |
+    map!(tuple!(apply!(token, Kw(Continue)), opt!(identifier)), |(_, i)| Statement::Continue(i)) |
+    map!(tuple!(apply!(token, Kw(Goto)), identifier), |(_, i)| Statement::Goto(i)) |
+    map!(apply!(token, Kw(Fallthrough)), |_| Statement::Fallthrough) |
+    map!(block, Statement::Block) |
+    map!(if_statement, Statement::If) |
+    expr_switch |
+    type_switch
+));
+
+named!(if_statement(&[Token]) -> IfStmt, do_parse!(
+       apply!(token, Kw(If))
+    >> simple: opt!(map!(tuple!(simple_stmt, semicolon), |(i, _)| i))
+    >> expression: expression
+    >> block: block
+    >> e: opt!(if_inner)
+
+    >> (IfStmt {simple, expression, block, else_branch: e.map(Box::new) })
+));
+
+named!(if_inner(&[Token]) -> IfInner, do_parse!(
+       apply!(token, Kw(Else))
+    >> i: alt!(map!(if_statement, IfInner::IfStmt) | map!(block, IfInner::Block))
+
+    >> (i)
+));
+
+named!(block(&[Token]) -> Block, do_parse!(
+       open_brace
+    >> statements: many0!(map!(tuple!(stmt, semicolon), |(i, _)| i))
+    >> close_brace
+
+    >> (Block { statements })
+));
+
+named!(expr_switch(&[Token]) -> Statement, do_parse!(
+       apply!(token, Kw(Switch))
+    >> simple: opt!(map!(tuple!(simple_stmt, semicolon), |(i, _)| i))
+    >> expression: opt!(expression)
+    >> open_brace
+    >> clauses: many0!(do_parse!(
+           expressions: alt!(
+               map!(apply!(token, Kw(Default)), |_| None) |
+               map!(tuple!(apply!(token, Kw(Case)), expression_list), |(_, i)| Some(i))
+           )
+        >> colon
+        >> statements: separated_list!(comma, stmt)
+        >> (ExprSwitchCase { expressions, statements })
+    ))
+    >> close_brace
+
+    >> (Statement::ExprSwitchStmt { simple, expression, clauses })
+));
+
+named!(type_switch_guard(&[Token]) -> TypeSwitchGuard, do_parse!(
+       identifier: opt!(map!(tuple!(identifier, colon_assign), |(i, _)| i))
+    >> primary: primary_expression
+
+    >> (TypeSwitchGuard { identifier, primary })
+));
+
+named!(type_switch(&[Token]) -> Statement, do_parse!(
+       apply!(token, Kw(Switch))
+    >> simple: opt!(map!(tuple!(simple_stmt, semicolon), |(i, _)| i))
+    >> guard: type_switch_guard
+    >> dot >> open_paren >> apply!(token, Kw(Type)) >> close_paren >> open_brace
+
+
+    >> clauses: many0!(do_parse!(
+           type_list: alt!(
+               map!(apply!(token, Kw(Default)), |_| None) |
+               map!(tuple!(apply!(token, Kw(Case)), separated_nonempty_list!(comma, ty)), |(_, i)| Some(i))
+           )
+        >> colon
+        >> statements: separated_list!(comma, stmt)
+        >> (TypeSwitchCase { type_list, statements })
+    ))
+    >> close_brace
+
+    >> (Statement::TypeSwitchStmt { simple, guard, clauses })
+));
 
 named!(pub program(&[Token]) -> Program, do_parse!(
        apply!(token, Kw(Package))

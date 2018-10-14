@@ -123,65 +123,69 @@ pub enum Ty {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct IfStmt {
+    pub simple: Option<SimpleStatement>,
+    pub expression: Expression,
+    pub block: Block,
+    pub else_branch: Option<Box<IfInner>>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum Statement {
     Decl(Declaration),
-    LabeledStmt {
+    Labeled {
         label: usize,
         statement: Box<Statement>,
     },
     Simple(SimpleStatement),
-    GoStmt(Expression),
-    ReturnStmt(Option<Vec<Expression>>),
-    BreakStmt(Option<usize>),
-    ContinueStmt(Option<usize>),
-    GotoStmt(usize),
-    FallthroughStmt,
-    Block(Box<Block>),
-    IfStmt {
-        simple: Option<SimpleStatement>,
-        expression: Expression,
-        block: Box<Block>,
-        else_branch: Box<IfInner>,
-    },
+    Go(Expression),
+    Return(Vec<Expression>),
+    Break(Option<usize>),
+    Continue(Option<usize>),
+    Goto(usize),
+    Fallthrough,
+    Block(Block),
+    If(IfStmt),
     ExprSwitchStmt {
         simple: Option<SimpleStatement>,
         expression: Option<Expression>,
-        clauses: Vec<Box<ExprSwitchCase>>,
+        clauses: Vec<ExprSwitchCase>,
     },
     TypeSwitchStmt {
         simple: Option<SimpleStatement>,
         guard: TypeSwitchGuard,
-        clauses: Vec<Box<TypeSwitchCase>>,
+        clauses: Vec<TypeSwitchCase>,
     },
+    Defer(Expression),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct TypeSwitchCase {
-    type_list: Vec<Ty>,
-    statements: Vec<Statement>,
+    pub type_list: Option<Vec<Ty>>,
+    pub statements: Vec<Statement>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct TypeSwitchGuard {
-    identifier: Option<usize>,
-    primary: PrimaryExpr,
+    pub identifier: Option<usize>,
+    pub primary: PrimaryExpr,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct ExprSwitchCase {
-    expressions: Option<Vec<Expression>>, // None = default clause
-    statements: Vec<Statement>,
+    pub expressions: Option<Vec<Expression>>, // None = default clause
+    pub statements: Vec<Statement>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum IfInner {
-    IfStmt(Statement::IfStmt),
-    Block(Block)
+    IfStmt(IfStmt),
+    Block(Block),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct Block {
-    statements: Vec<Statement>,
+    pub statements: Vec<Statement>,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -191,7 +195,8 @@ pub enum SimpleStatement {
         left: Expression,
         right: Expression,
     },
-    IncDecStmt(Expression),
+    IncStmt(Expression),
+    DecStmt(Expression),
     AssignStmt {
         left: Vec<Expression>,
         op: types::BinaryOp,
