@@ -42,4 +42,4 @@ Requirements:
 cargo doc
 ```
 
-The documentation index will be located at `target/doc/rust_lexer/index.html`
+The documentation index will be located at `target/doc/goparse/index.html`
