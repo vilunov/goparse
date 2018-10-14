@@ -80,9 +80,7 @@ pub enum VarRightSide {
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum TopLevelDecl {
-    Consts(Vec<ConstSpec>),
-    Types(Vec<TypeSpec>),
-    Vars(Vec<VarSpec>),
+    Decl(Declaration),
     Function(FuncDecl),
 }
 
@@ -122,6 +120,43 @@ pub enum Ty {
     Function(Signature),
     Interface(Vec<MethodSpec>),
     Struct(Vec<FieldDecl>),
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum Statement {
+    Decl(Declaration),
+    Simple(SimpleStatement),
+    LabeledStmt {
+        label: usize,
+        statement: Box<Statement>,
+    },
+
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum SimpleStatement {
+    Expr(Expression),
+    SendStmt {
+        left: Expression,
+        right: Expression,
+    },
+    IncDecStmt(Expression),
+    AssignStmt {
+        left: Vec<Expression>,
+        op: types::BinaryOp,
+        right: Vec<Expression>,
+    },
+    ShortVarStmt {
+        identifiers: Vec<usize>,
+        expressions: Vec<Expression>,
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum Declaration {
+    ConstDecl(Vec<ConstSpec>),
+    TypeDecl(Vec<TypeSpec>),
+    VarDecl(Vec<VarSpec>),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]

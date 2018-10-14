@@ -5,6 +5,7 @@ use types::BinaryOp::*;
 use types::Keyword::*;
 use types::Literal::*;
 use types::Token::*;
+use types::Punctuation::*;
 use types::*;
 
 mod helpers;
@@ -250,11 +251,54 @@ named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
     >> (FuncDecl { name, receiver,  signature })
 ));
 
+named!(decl(&[Token]) -> Declaration,
+    alt!(map!(const_decl, Declaration::ConstDecl)
+        |map!(var_decl, Declaration::VarDecl)
+        |map!(type_decl, Declaration::TypeDecl)
+));
+
 named!(top_level_decl(&[Token]) -> TopLevelDecl,
-    alt!(map!(const_decl, TopLevelDecl::Consts)
-        |map!(var_decl, TopLevelDecl::Vars)
-        |map!(func_decl, TopLevelDecl::Function)
-        |map!(type_decl, TopLevelDecl::Types))
+    alt!(map!(decl, TopLevelDecl::Decl)
+        |map!(func_decl, TopLevelDecl::Function))
+);
+
+named!(simple_stmt(&[Token]) -> SimpleStatement, alt!(
+       do_parse!(
+                left: expression_list
+             >> op: assign_op
+             >> right: expression_list
+
+             >> (SimpleStatement::AssignStmt { left, op, right })
+       ) |
+       do_parse!(
+                identifiers: identifier_list
+             >> apply!(token, Punc(Colon))
+             >> apply!(token, Punc(Assign))
+             >> expressions: expression_list
+
+             >> (SimpleStatement::ShortVarStmt { identifiers, expressions })
+       ) | alt!(do_parse!(
+                        left: expression
+                     >> apply!(token, Punc(LeftArrow))
+                     >> right: expression
+
+                     >> (SimpleStatement::SendStmt { left, right } )
+                ) |
+                do_parse!(
+                        left: expression
+                     >> alt!(apply!(token, Punc(Increment)) | apply!(token, Punc(Decrement)))
+
+                     >> (SimpleStatement::IncDecStmt(left))
+                ) |
+                do_parse!(
+                        left: expression
+                     >> (SimpleStatement::Expr(left))
+                ))
+));
+
+named!(stmt(&[Token]) -> Statement,
+    alt!(map!(decl, Statement::Decl)
+        |map!(simple_stmt, Statement::Simple))
 );
 
 named!(pub program(&[Token]) -> Program, do_parse!(
