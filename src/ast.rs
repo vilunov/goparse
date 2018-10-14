@@ -56,8 +56,48 @@ pub enum Ty {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
-pub enum PrimaryExpr {
+pub enum PrimaryExprInner {
     Literal(Literal),
     Identifier(FullIdentifier),
     Parenthesis(Box<Expression>),
+    Conversion {
+        to: Ty,
+        expression: Box<Expression>,
+    },
+    MethodExpr {
+        receiver: Ty,
+        method_identifier: usize,
+    },
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub enum PrimaryExprMod {
+    Selector(usize),
+    Index(Box<Expression>),
+    Slice2 {
+        left: Option<Box<Expression>>,
+        right: Option<Box<Expression>>,
+    },
+    Slice3 {
+        left: Option<Box<Expression>>,
+        center: Box<Expression>,
+        right: Box<Expression>,
+    },
+    TypeAssertion(Ty),
+    EmptyCall,
+    TypeCall {
+        ty: Ty,
+        expressions: Vec<Expression>,
+        dotdotdot: bool,
+    },
+    Call {
+        expressions: Vec<Expression>,
+        dotdotdot: bool,
+    },
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize)]
+pub struct PrimaryExpr {
+    pub inner: PrimaryExprInner,
+    pub mods: Vec<PrimaryExprMod>,
 }

@@ -32,8 +32,8 @@ fn main() {
                 . "shrek"
             )
 
-            const kek int = 32
-            const shrek;
+            const shrek, kek int = int(32).kek, aye.smert[1[1]]
+            const shrek; //dsadsaads
 
             const (
                 autism, sdada int = 32
