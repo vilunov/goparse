@@ -48,7 +48,9 @@ cargo doc
 
 The documentation index will be located at `target/doc/goparse/index.html`
 
-# Terminals
+# Grammar
+
+## Terminals
 
 ```
 string_literal
@@ -58,7 +60,7 @@ bin_op
 assign_op
 ```
 
-# Grammar
+## Rules
 
 ```
 Program => PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" }
