@@ -23,15 +23,6 @@ fn test_signature() {
 }
 
 #[test]
-fn test_parameters_spec() {
-    let (tokens, _, _) = lexical("int.int;");
-    println!("==================\n{:?}", tokens);
-    let (rem, expr) =  parameters_spec(&tokens[..]).unwrap();
-    assert_eq!(rem, &[Token::Punc(Punctuation::Semicolon)]);
-    println!("{:?}", expr);
-}
-
-#[test]
 fn test_parameters_ty() {
     let (tokens, _, _) = lexical("int.int;");
     println!("==================\n{:?}", tokens);
