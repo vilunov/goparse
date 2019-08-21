@@ -259,7 +259,7 @@ impl StdError for Error {
         "Some tokens were not consumed during syntactical analysis"
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         None
     }
 }

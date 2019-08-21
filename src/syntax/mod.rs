@@ -1,5 +1,8 @@
 use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
-use nom::apply;
+use nom::multi::{separated_nonempty_list, many0, separated_list};
+use nom::combinator::{map, opt, value};
+use nom::branch::alt;
+use nom::sequence::tuple;
 
 use crate::ast::*;
 use crate::types::BinaryOp::*;
@@ -26,9 +29,9 @@ fn identifier(tokens: &[Token]) -> IResult<usize> {
 
 }
 
-named!(identifier_list(&[Token]) -> Vec<usize>,
-    separated_nonempty_list!(comma, identifier)
-);
+fn identifier_list(input: &[Token]) -> IResult<Vec<usize>> {
+    separated_nonempty_list(comma, identifier)(input)
+}
 
 fn string_literal(tokens: &[Token]) -> IResult<usize> {
     if tokens.len() < 1 {
@@ -52,255 +55,313 @@ fn literal(tokens: &[Token]) -> IResult<Literal> {
     }
 }
 
-named!(qualified_identifier(&[Token]) -> FullIdentifier, do_parse!(
-       package: identifier
-    >> dot
-    >> identifier: identifier
+fn qualified_identifier(input: &[Token]) -> IResult<FullIdentifier> {
+    let (input, package) = identifier(input)?;
+    let (input, _) = dot(input)?;
+    let (input, identifier) = identifier(input)?;
+    Ok((input, FullIdentifier::Qualified {package, identifier }))
+}
 
-    >> (FullIdentifier::Qualified {package, identifier})
-));
+pub fn full_identifier(input: &[Token]) -> IResult<FullIdentifier> {
+    alt((
+        qualified_identifier,
+        map(identifier, FullIdentifier::Unqualified)
+    ))(input)
+}
 
-named!(pub full_identifier(&[Token]) -> FullIdentifier, alt!(
-    qualified_identifier |
-    map!(identifier, FullIdentifier::Unqualified)
-));
+pub fn ty(input: &[Token]) -> IResult<Ty> {
+    fn array(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = open_bracket(input)?;
+        let (input, length) = opt(expression)(input)?;
+        let (input, _) = close_bracket(input)?;
+        let (input, elems) = ty(input)?;
+        Ok((input, Ty::Array { length: length.map(Box::new), elements: Box::new(elems) }))
+    }
 
-named!(pub ty(&[Token]) -> Ty, alt!(
-    map!(full_identifier, Ty::TypeName) |
-    do_parse!(
-           open_bracket
-        >> length: opt!(expression)
-        >> close_bracket
-        >> elems: ty
+    fn boxx(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = kw_map(input)?;
+        let (input, _) = open_bracket(input)?;
+        let (input, keys) = ty(input)?;
+        let (input, _) = close_bracket(input)?;
+        let (input, elems) = ty(input)?;
+        Ok((input, Ty::Map { keys: Box::new(keys), elements: Box::new(elems) }))
+    }
 
-        >> (Ty::Array { length: length.map(Box::new), elements: Box::new(elems) })
-    ) |
-    do_parse!(
-           kw_map
-        >> open_bracket
-        >> keys: ty
-        >> close_bracket
-        >> elems: ty
+    fn pointer(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = star(input)?;
+        let (input, t) = ty(input)?;
+        Ok((input, Ty::Pointer(Box::new(t))))
+    }
 
-        >> (Ty::Map { keys: Box::new(keys), elements: Box::new(elems) })
-    ) |
-    do_parse!(
-           star
-        >> t: ty
-        >> (Ty::Pointer(Box::new(t)))
-    ) |
-    do_parse!(
-           apply!(token, Kw(Chan))
-        >> t: ty
-        >> (Ty::ChanBi(Box::new(t)))
-    ) |
-    do_parse!(
-           apply!(token, Kw(Chan)) >> left_arrow
-        >> t: ty
-        >> (Ty::ChanTx(Box::new(t)))
-    ) |
-    do_parse!(
-           left_arrow >> apply!(token, Kw(Chan))
-        >> t: ty
-        >> (Ty::ChanRx(Box::new(t)))
-    ) |
-    do_parse!(
-           apply!(token, Kw(Func))
-        >> s: signature
-        >> (Ty::Function(s))
-    ) |
-    do_parse!(
-           apply!(token, Kw(Interface))
-        >> open_brace
-        >> specs: many0!(map!(tuple!(method_spec, semicolon), |(i, _)| i))
-        >> close_brace
+    fn chan_bi(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = token(input, Kw(Chan))?;
+        let (input, t) = ty(input)?;
+        Ok((input, Ty::ChanBi(Box::new(t))))
+    }
 
-        >> (Ty::Interface(specs))
-    ) |
-    do_parse!(
-           apply!(token, Kw(Struct))
-        >> open_brace
-        >> specs: many0!(map!(tuple!(field_decl, semicolon), |(i, _)| i))
-        >> close_brace
+    fn chan_tx(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = token(input, Kw(Chan))?;
+        let (input, _) = left_arrow(input)?;
+        let (input, t) = ty(input)?;
+        Ok((input, Ty::ChanTx(Box::new(t))))
+    }
 
-        >> (Ty::Struct(specs))
-    ) |
-    map!(tuple!(open_paren, ty, close_paren), |(_, i, _)| i)
-));
+    fn chan_rx(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = left_arrow(input)?;
+        let (input, _) = token(input, Kw(Chan))?;
+        let (input, t) = ty(input)?;
+        Ok((input, Ty::ChanRx(Box::new(t))))
+    }
 
-named!(method_spec(&[Token]) -> MethodSpec, alt!(
-    map!(tuple!(identifier, signature), |(i, j)| MethodSpec::Method { name: i, signature: j }) |
-    map!(full_identifier, MethodSpec::Interface)
+    fn function(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = token(input, Kw(Func))?;
+        let (input, s) = signature(input)?;
+        Ok((input, Ty::Function(s)))
+    }
 
-));
+    fn interface(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = token(input, Kw(Interface))?;
+        let (input, _) = open_brace(input)?;
+        let (input, specs) = many0(tuple((method_spec, semicolon)))(input)?;
+        let (input, _) = close_brace(input)?;
+        let specs = specs.into_iter().map(|(i, _)| i).collect();
+        Ok((input, Ty::Interface(specs)))
+    }
 
-named!(field_decl(&[Token]) -> FieldDecl, do_parse!(
-       inner: alt!(do_parse!(identifiers: identifier_list >>
-                             ty: ty >>
-                             (FieldDeclInner::Explicit { identifiers, ty })) |
-                   map!(tuple!(opt!(star), full_identifier),
-                        |(i, j)| FieldDeclInner::Embedded { star: i.is_some(), type_name: j })
+    fn strukt(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = token(input, Kw(Struct))?;
+        let (input, _) = open_brace(input)?;
+        let (input, specs) = many0(tuple((field_decl, semicolon)))(input)?;
+        let (input, _) = close_brace(input)?;
+        let specs = specs.into_iter().map(|(i, _)| i).collect();
+        Ok((input, Ty::Struct(specs)))
+    }
 
-       )
-    >> tag: opt!(string_literal)
+    fn nested(input: &[Token]) -> IResult<Ty> {
+        let (input, _) = open_paren(input)?;
+        let (input, i) = ty(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((input, i))
+    }
 
-    >> (FieldDecl { inner, tag })
-));
+    alt((
+        map(full_identifier, Ty::TypeName),
+        array,
+        boxx,
+        pointer,
+        chan_bi,
+        chan_tx,
+        chan_rx,
+        function,
+        interface,
+        strukt,
+        nested,
+    ))(input)
+}
 
-named!(import_spec(&[Token]) -> ImportSpec, do_parse!(
-       package: opt!(alt!(value!(ImportSpecPackage::Dot, dot)
-                        | map!(identifier, ImportSpecPackage::Package)))
-    >> path: string_literal
 
-    >> (ImportSpec { package, path })
-));
+fn method_spec(input: &[Token]) -> IResult<MethodSpec> {
+    fn method(input: &[Token]) -> IResult<MethodSpec> {
+        let (input, name) = identifier(input)?;
+        let (input, signature) = signature(input)?;
+        Ok((input, MethodSpec::Method { name, signature }))
+    }
 
-named!(import_decl(&[Token]) -> Vec<ImportSpec>, do_parse!(
-       apply!(token, Kw(Import))
-    >> specs: call!(one_or_many, &import_spec)
-    >> semicolon
+    fn interface(input: &[Token]) -> IResult<MethodSpec> {
+        let (input, identifier) = full_identifier(input)?;
+        Ok((input, MethodSpec::Interface(identifier)))
+    }
 
-    >> (specs)
-));
+    alt((
+        method,
+        interface,
+    ))(input)
+}
 
-named!(const_spec(&[Token]) -> ConstSpec, do_parse!(
-       identifiers: identifier_list
-    >> right_side: opt!(map!(tuple!(opt!(ty), assign, expression_list),
-                             |(i, _, j)| ConstSpecRightSide { ty: i, expressions: j }))
+fn field_decl(input: &[Token]) -> IResult<FieldDecl> {
+    fn explicit(input: &[Token]) -> IResult<FieldDeclInner> {
+        let (input, identifiers) = identifier_list(input)?;
+        let (input, ty) = ty(input)?;
+        Ok((input, FieldDeclInner::Explicit { identifiers, ty }))
+    }
+    fn embedded(input: &[Token]) -> IResult<FieldDeclInner> {
+        let (input, i) = opt(star)(input)?;
+        let (input, type_name) = full_identifier(input)?;
+        let star = i.is_some();
+        Ok((input, FieldDeclInner::Embedded { star, type_name }))
+    }
 
-    >> (ConstSpec { identifiers, right_side })
-));
+    let (input, inner) = alt((explicit, embedded))(input)?;
+    let (input, tag) = opt(string_literal)(input)?;
+    Ok((input, FieldDecl { inner, tag }))
+}
 
-named!(const_decl(&[Token]) -> Vec<ConstSpec>, do_parse!(
-       apply!(token, Kw(Const))
-    >> specs: call!(one_or_many, &const_spec)
+fn import_spec(input: &[Token]) -> IResult<ImportSpec> {
+    let (input, package) = opt(alt((
+        value(ImportSpecPackage::Dot, dot),
+        map(identifier, ImportSpecPackage::Package),
+    )))(input)?;
+    let (input, path) = string_literal(input)?;
+    Ok((input, ImportSpec { package, path }))
+}
 
-    >> (specs)
-));
+fn import_decl(input: &[Token]) -> IResult<Vec<ImportSpec>> {
+    let (input, _) = token(input, Kw(Import))?;
+    let (input, specs) = one_or_many(input, &import_spec)?;
+    let (input, _) = semicolon(input)?;
+    Ok((input, specs))
+}
 
-named!(type_spec(&[Token]) -> TypeSpec, do_parse!(
-       identifier: identifier
-    >> opt!(assign)
-    >> ty: ty
+fn const_spec(input: &[Token]) -> IResult<ConstSpec> {
+    fn right_side(input: &[Token]) -> IResult<ConstSpecRightSide> {
+        let (input, ty) = opt(ty)(input)?;
+        let (input, _) = assign(input)?;
+        let (input, expressions) = expression_list(input)?;
+        Ok((input, ConstSpecRightSide { ty, expressions }))
+    }
 
-    >> (TypeSpec { identifier, ty } )
-));
+    let (input, identifiers) = identifier_list(input)?;
+    let (input, right_side) = opt(right_side)(input)?;
+    Ok((input, ConstSpec { identifiers, right_side }))
+}
 
-named!(type_decl(&[Token]) -> Vec<TypeSpec>, do_parse!(
-       apply!(token, Kw(Type))
-    >> specs: apply!(one_or_many, &type_spec)
+fn const_decl(input: &[Token]) -> IResult<Vec<ConstSpec>> {
+    let (input, _) = token(input, Kw(Const))?;
+    let (input, specs) = one_or_many(input, &const_spec)?;
+    Ok((input, specs))
+}
 
-    >> (specs)
-));
+fn type_spec(input: &[Token]) -> IResult<TypeSpec> {
+    let (input, identifier) = identifier(input)?;
+    let (input, _) = opt(assign)(input)?;
+    let (input, ty) = ty(input)?;
+    Ok((input, TypeSpec { identifier, ty }))
+}
 
-named!(var_spec(&[Token]) -> VarSpec, do_parse!(
-       identifiers: identifier_list
-    >> right_side: opt!(alt!(
-            do_parse!(
-                    ty: ty
-                 >> expression: opt!(map!(tuple!(assign, expression_list),
-                                          |(_, v)| v))
-                 >> (VarRightSide::WithType { ty, expression} )
-            ) |
-            map!(
-                tuple!(assign, expression_list),
-                |(_, v)| VarRightSide::WithoutType(v)
-            )
-    ))
-    >> (VarSpec { identifiers, right_side })
-));
+fn type_decl(input: &[Token]) -> IResult<Vec<TypeSpec>> {
+    let (input, _) = token(input, Kw(Type))?;
+    let (input, specs) = one_or_many(input, &type_spec)?;
+    Ok((input, specs))
+}
 
-named!(var_decl(&[Token]) -> Vec<VarSpec>, do_parse!(
-       apply!(token, Kw(Var))
-    >> specs: apply!(one_or_many, &var_spec)
+fn var_spec(input: &[Token]) -> IResult<VarSpec> {
+    fn right_side_with_type(input: &[Token]) -> IResult<VarRightSide> {
+        let (input, ty) = ty(input)?;
+        let (input, k) = opt(tuple((assign, expression_list)))(input)?;
+        let expression = k.map(|(_, i)| i);
+        Ok((input, VarRightSide::WithType { ty, expression }))
+    }
 
-    >> (specs)
-));
+    fn right_side_without_type(input: &[Token]) -> IResult<VarRightSide> {
+        let (input, _) = assign(input)?;
+        let (input, expressions) = expression_list(input)?;
+        Ok((input, VarRightSide::WithoutType(expressions)))
+    }
 
-named!(pub parameters_spec(&[Token]) -> ParametersDecl, do_parse!(
-       idents: separated_list!(comma, identifier)
-    >> ddd: opt!(dot_dot_dot)
-    >> ty: ty
+    let (input, identifiers) = identifier_list(input)?;
+    let (input, right_side) = opt(alt((right_side_with_type, right_side_without_type)))(input)?;
+    Ok((input, VarSpec { identifiers, right_side }))
+}
 
-    >> (ParametersDecl {
-        idents,
-        dotdotdot: ddd.is_some(),
-        ty
-    })
-));
+fn var_decl(input: &[Token]) -> IResult<Vec<VarSpec>> {
+    let (input, _) = token(input, Kw(Var))?;
+    let (input, specs) = one_or_many(input, &var_spec)?;
+    Ok((input, specs))
+}
 
-named!(parameters_decl(&[Token]) -> Vec<ParametersDecl>, do_parse!(
-        open_paren
-    >>  parameters: separated_list!(comma, &parameters_spec)
-    >>  close_paren
+pub fn parameters_spec(input: &[Token]) -> IResult<ParametersDecl> {
+    let (input, idents) = separated_list(comma, identifier)(input)?;
+    let (input, ddd) = opt(dot_dot_dot)(input)?;
+    let (input, ty) = ty(input)?;
+    let dotdotdot = ddd.is_some();
+    Ok((input, ParametersDecl { idents, dotdotdot, ty }))
+}
 
-    >> (parameters)
-));
+fn parameters_decl(input: &[Token]) -> IResult<Vec<ParametersDecl>> {
+    let (input, _) = open_paren(input)?;
+    let (input, parameters) = separated_list(comma, parameters_spec)(input)?;
+    let (input, _) = close_paren(input)?;
+    Ok((input, parameters))
+}
 
-named!(pub signature(&[Token]) -> Signature, do_parse!(
-        params: parameters_decl
-    >>  result: opt!(alt!(map!(ty, SignatureResult::TypeResult)
-                        | map!(parameters_decl, SignatureResult::Params)))
+pub fn signature(input: &[Token]) -> IResult<Signature> {
+    let (input, params) = parameters_decl(input)?;
+    let (input, result) = opt(alt((
+        map(ty, SignatureResult::TypeResult),
+        map(parameters_decl, SignatureResult::Params),
+    )))(input)?;
+    Ok((input, Signature { params, result: result.map(Box::new) }))
+}
 
-    >> (Signature { params, result: result.map(Box::new) })
-));
+fn func_decl(input: &[Token]) -> IResult<FuncDecl> {
+    let (input, _) = token(input, Kw(Func))?;
+    let (input, receiver) = opt(parameters_decl)(input)?;
+    let (input, name) = identifier(input)?;
+    let (input, signature) = signature(input)?;
+    let (input, body) = opt(block)(input)?;
+    Ok((input, FuncDecl { name, receiver, signature, body }))
+}
 
-named!(func_decl(&[Token]) -> FuncDecl, do_parse!(
-       apply!(token, Kw(Func))
-    >> receiver: opt!(parameters_decl)
-    >> name: identifier
-    >> signature: signature
-    >> body: opt!(block)
+fn decl(input: &[Token]) -> IResult<Declaration> {
+    alt((
+        map(const_decl, Declaration::ConstDecl),
+        map(var_decl, Declaration::VarDecl),
+        map(type_decl, Declaration::TypeDecl),
+    ))(input)
+}
 
-    >> (FuncDecl { name, receiver, signature, body })
-));
+fn top_level_decl(input: &[Token]) -> IResult<TopLevelDecl> {
+    let (input, stuff) = alt((
+        map(decl, TopLevelDecl::Decl),
+        map(func_decl, TopLevelDecl::Function),
+    ))(input)?;
+    let (input, _) = semicolon(input)?;
+    Ok((input, stuff))
+}
 
-named!(decl(&[Token]) -> Declaration,
-    alt!(map!(const_decl, Declaration::ConstDecl)
-        |map!(var_decl, Declaration::VarDecl)
-        |map!(type_decl, Declaration::TypeDecl)
-));
+fn simple_stmt(input: &[Token]) -> IResult<SimpleStatement> {
+    fn assign_stmt(input: &[Token]) -> IResult<SimpleStatement> {
+        let (input, left) = expression_list(input)?;
+        let (input, op) = assign_op(input)?;
+        let (input, right) = expression_list(input)?;
+        Ok((input, SimpleStatement::AssignStmt {left, op, right}))
+    }
 
-named!(top_level_decl(&[Token]) -> TopLevelDecl, do_parse!(
-       stuff: alt!(map!(decl, TopLevelDecl::Decl)
-                 | map!(func_decl, TopLevelDecl::Function))
-    >> semicolon
+    fn short_var_stmt(input: &[Token]) -> IResult<SimpleStatement> {
+        let (input, identifiers) = identifier_list(input)?;
+        let (input, _) = colon_assign(input)?;
+        let (input, expressions) = expression_list(input)?;
+        Ok((input, SimpleStatement::ShortVarStmt { identifiers, expressions}))
+    }
 
-    >> (stuff)
-));
+    fn send_stmt(input: &[Token]) -> IResult<SimpleStatement> {
+        let (input, left) = expression(input)?;
+        let (input, _) = token(input, Punc(LeftArrow))?;
+        let (input, right) = expression(input)?;
+        Ok((input, SimpleStatement::SendStmt { left, right }))
+    }
 
-named!(simple_stmt(&[Token]) -> SimpleStatement, alt!(
-       do_parse!(
-                left: expression_list
-             >> op: assign_op
-             >> right: expression_list
+    fn inc_stmt(input: &[Token]) -> IResult<SimpleStatement> {
+        let (input, left) = expression(input)?;
+        let (input, _) = token(input, Punc(Increment))?;
+        Ok((input, SimpleStatement::IncStmt(left)))
+    }
 
-             >> (SimpleStatement::AssignStmt { left, op, right })
-       ) |
-       do_parse!(
-                identifiers: identifier_list
-             >> colon_assign
-             >> expressions: expression_list
+    fn dec_stmt(input: &[Token]) -> IResult<SimpleStatement> {
+        let (input, left) = expression(input)?;
+        let (input, _) = token(input, Punc(Decrement))?;
+        Ok((input, SimpleStatement::DecStmt(left)))
+    }
 
-             >> (SimpleStatement::ShortVarStmt { identifiers, expressions })
-       ) |
-       do_parse!(
-              left: expression
-           >> apply!(token, Punc(LeftArrow))
-           >> right: expression
-
-           >> (SimpleStatement::SendStmt { left, right } )
-       ) |
-       do_parse!(
-              left: expression >> apply!(token, Punc(Increment))
-           >> (SimpleStatement::IncStmt(left))
-       ) |
-       do_parse!(
-              left: expression >> apply!(token, Punc(Decrement))
-           >> (SimpleStatement::DecStmt(left))
-       ) |
-       map!(expression, SimpleStatement::Expr)
-));
+    alt((
+        assign_stmt,
+        short_var_stmt,
+        send_stmt,
+        inc_stmt,
+        dec_stmt,
+        map(expression, SimpleStatement::Expr)
+    ))(input)
+}
 
 named!(stmt(&[Token]) -> Statement, alt!(
     map!(decl, Statement::Decl) |

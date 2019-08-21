@@ -42,7 +42,7 @@ fn read_files(paths: impl Iterator<Item=PathBuf>) -> impl Iterator<Item=(PathBuf
     })
 }
 
-fn write_file(path: &Path, input: &str) -> Result<(), Box<std::error::Error>> {
+fn write_file(path: &Path, input: &str) -> Result<(), Box<dyn std::error::Error>> {
     let (tokens, idents, strings): (Vec<types::Token>, _, _) = lexer::Lexer::new().tokenize(input)?.collect();
     let ast = {
         match syntax::program(tokens.as_slice())
