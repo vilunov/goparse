@@ -1,141 +1,224 @@
-use ast::*;
-use types::PairedToken::*;
-use types::Punctuation::*;
-use types::Token::*;
-use types::*;
+use nom::branch::alt;
+use nom::combinator::{map, opt};
+use nom::multi::{many0, separated_list, separated_nonempty_list};
+use nom::sequence::tuple;
 
-use syntax::helpers::*;
-use syntax::{identifier, full_identifier, literal, ty};
+use crate::ast::*;
+use crate::syntax::{full_identifier, identifier, literal, ty};
+use crate::syntax::helpers::*;
+use crate::types::*;
 
-named!(primary_expression_inner(&[Token]) -> PrimaryExprInner, alt!(
-    map!(composite_literal, PrimaryExprInner::CompositeLiteral) |
-    map!(tuple!(open_paren, expression, close_paren),
-         |(_, i, _)| PrimaryExprInner::Parenthesis(Box::new(i))) |
-    do_parse!(
-           to: ty >> open_paren >> expr: expression >> opt!(comma) >> close_paren
-        >> (PrimaryExprInner::Conversion { to, expression: Box::new(expr) })
-    ) |
-    do_parse!(
-           receiver: ty >> method_identifier: identifier
-        >> (PrimaryExprInner::MethodExpr { receiver, method_identifier})
-    ) |
-    map!(full_identifier, PrimaryExprInner::Identifier) |
-    map!(literal, PrimaryExprInner::Literal)
-));
+use super::helpers::IResult;
 
-named!(pub primary_expression(&[Token]) -> PrimaryExpr, do_parse!(
-       inner: primary_expression_inner >> mods: many0!(primary_expression_modifier)
-    >> (PrimaryExpr { inner, mods })
-));
+fn primary_expression_inner(input: &[Token]) -> IResult<PrimaryExprInner> {
+    fn conversion(input: &[Token]) -> IResult<PrimaryExprInner> {
+        let (input, to) = ty(input)?;
+        let (input, _) = open_paren(input)?;
+        let (input, expr) = expression(input)?;
+        let (input, _) = opt(comma)(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((
+            input,
+            PrimaryExprInner::Conversion {
+                to,
+                expression: Box::new(expr),
+            },
+        ))
+    }
 
-named!(primary_expression_modifier(&[Token]) -> PrimaryExprMod, alt!(
-    do_parse!(
-           dot >> identifier: identifier
-        >> (PrimaryExprMod::Selector(identifier))
-    ) |
-    do_parse!(
-           open_bracket
-        >> left: opt!(expression) >> colon >> center: expression >> colon >> right: expression
-        >> close_bracket
+    fn method_expr(input: &[Token]) -> IResult<PrimaryExprInner> {
+        let (input, receiver) = ty(input)?;
+        let (input, method_identifier) = identifier(input)?;
+        Ok((
+            input,
+            PrimaryExprInner::MethodExpr {
+                receiver,
+                method_identifier,
+            },
+        ))
+    }
 
-        >> (PrimaryExprMod::Slice3 {
-            left: left.map(Box::new),
-            center: Box::new(center),
-            right: Box::new(right),
-        })
-    ) |
-    do_parse!(
-           open_bracket
-        >> left: opt!(expression) >> colon >> right: opt!(expression)
-        >> close_bracket
+    alt((
+        map(composite_literal, PrimaryExprInner::CompositeLiteral),
+        map(tuple((open_paren, expression, close_paren)), |(_, i, _)| {
+            PrimaryExprInner::Parenthesis(Box::new(i))
+        }),
+        conversion,
+        method_expr,
+        map(full_identifier, PrimaryExprInner::Identifier),
+        map(literal, PrimaryExprInner::Literal),
+    ))(input)
+}
 
-        >> (PrimaryExprMod::Slice2 { left: left.map(Box::new), right: right.map(Box::new) })
-    ) |
-    do_parse!(
-           open_bracket >> expr: expression >> close_bracket
-        >> (PrimaryExprMod::Index(Box::new(expr)))
-    ) |
-    do_parse!(
-           dot >> open_paren >> ty: ty >> close_paren
-        >> (PrimaryExprMod::TypeAssertion(ty))
-    ) |
-    do_parse!(
-           open_paren >> close_paren
-        >> (PrimaryExprMod::EmptyCall)
-    ) |
-    do_parse!(
-           open_paren
-        >> ty: ty
-        >> expr: opt!(map!(tuple!(comma, expression_list), |(_, i)| i))
-        >> dots: opt!(dot_dot_dot)
-        >> opt!(comma)
-        >> close_paren
+pub fn primary_expression(input: &[Token]) -> IResult<PrimaryExpr> {
+    let (input, inner) = primary_expression_inner(input)?;
+    let (input, mods) = many0(primary_expression_modifier)(input)?;
+    Ok((input, PrimaryExpr { inner, mods }))
+}
 
-        >> (PrimaryExprMod::TypeCall {
-            ty,
-            expressions: expr.unwrap_or(vec![]),
-            dotdotdot: dots.is_some()
-        })
-    ) |
-    do_parse!(
-           open_paren
-        >> expressions: expression_list
-        >> dots: opt!(dot_dot_dot)
-        >> opt!(comma)
-        >> close_paren
+pub fn primary_expression_modifier(input: &[Token]) -> IResult<PrimaryExprMod> {
+    fn selector(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = dot(input)?;
+        let (input, identifier) = identifier(input)?;
+        Ok((input, PrimaryExprMod::Selector(identifier)))
+    }
 
-        >> (PrimaryExprMod::Call { expressions, dotdotdot: dots.is_some() })
-    )
-));
+    fn slice3(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_bracket(input)?;
+        let (input, left) = opt(expression)(input)?;
+        let (input, _) = colon(input)?;
+        let (input, center) = expression(input)?;
+        let (input, _) = colon(input)?;
+        let (input, right) = expression(input)?;
+        let (input, _) = close_bracket(input)?;
+        Ok((
+            input,
+            PrimaryExprMod::Slice3 {
+                left: left.map(Box::new),
+                center: Box::new(center),
+                right: Box::new(right),
+            },
+        ))
+    }
 
-named!(expr_or_literal_value(&[Token]) -> ExprOrLiteralValue, alt!(
-    map!(expression, ExprOrLiteralValue::Expression) |
-    map!(literal_value, ExprOrLiteralValue::LiteralValue)
-));
+    fn slice2(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_bracket(input)?;
+        let (input, left) = opt(expression)(input)?;
+        let (input, _) = colon(input)?;
+        let (input, right) = opt(expression)(input)?;
+        let (input, _) = close_bracket(input)?;
+        Ok((
+            input,
+            PrimaryExprMod::Slice2 {
+                left: left.map(Box::new),
+                right: right.map(Box::new),
+            },
+        ))
+    }
 
-named!(literal_value(&[Token]) -> Vec<LiteralElement>, do_parse!(
-       open_brace
-    >> values: map!(opt!(tuple!(separated_nonempty_list!(comma, literal_element), opt!(comma))),
-                    |i| i.map(|(j, _)| j).unwrap_or(vec![]))
-    >> close_brace
+    fn index(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_bracket(input)?;
+        let (input, expr) = expression(input)?;
+        let (input, _) = close_bracket(input)?;
+        Ok((input, PrimaryExprMod::Index(Box::new(expr))))
+    }
 
-    >> (values)
-));
+    fn type_assertion(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_paren(input)?;
+        let (input, t) = ty(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((input, PrimaryExprMod::TypeAssertion(t)))
+    }
 
-named!(literal_element(&[Token]) -> LiteralElement, do_parse!(
-       key: opt!(map!(tuple!(expr_or_literal_value, colon), |(i, _)| i))
-    >> element: expr_or_literal_value
+    fn empty_call(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_paren(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((input, PrimaryExprMod::EmptyCall))
+    }
 
-    >> (LiteralElement { key, element })
-));
+    fn type_call(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_paren(input)?;
+        let (input, t) = ty(input)?;
+        let (input, expr) = opt(map(tuple((comma, expression_list)), |(_, i)| i))(input)?;
+        let (input, dots) = opt(dot_dot_dot)(input)?;
+        let (input, _) = opt(comma)(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((
+            input,
+            PrimaryExprMod::TypeCall {
+                ty: t,
+                expressions: expr.unwrap_or(vec![]),
+                dotdotdot: dots.is_some(),
+            },
+        ))
+    }
 
-named!(composite_literal(&[Token]) -> CompositeLiteral, do_parse!(
-       start: opt!(tuple!(open_bracket, dot_dot_dot, close_bracket))
-    >> ty: ty
-    >> value: literal_value
+    fn call(input: &[Token]) -> IResult<PrimaryExprMod> {
+        let (input, _) = open_paren(input)?;
+        let (input, expressions) = expression_list(input)?;
+        let (input, dots) = opt(dot_dot_dot)(input)?;
+        let (input, _) = opt(comma)(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((
+            input,
+            PrimaryExprMod::Call {
+                expressions,
+                dotdotdot: dots.is_some(),
+            },
+        ))
+    }
 
-    >> (CompositeLiteral {
-        strange_things: start.is_some(),
-        ty,
-        value,
-    })
-));
+    alt((
+        selector,
+        slice3,
+        slice2,
+        index,
+        type_assertion,
+        empty_call,
+        type_call,
+        call,
+    ))(input)
+}
 
-named!(unary_expression(&[Token]) -> UnaryExpression, do_parse!(
-       ops: many0!(unary_op)
-    >> primary: primary_expression
+pub fn expr_or_literal_value(input: &[Token]) -> IResult<ExprOrLiteralValue> {
+    alt((
+        map(expression, ExprOrLiteralValue::Expression),
+        map(literal_value, ExprOrLiteralValue::LiteralValue),
+    ))(input)
+}
 
-    >> (UnaryExpression { ops, primary })
-));
+pub fn literal_value(input: &[Token]) -> IResult<Vec<LiteralElement>> {
+    let (input, _) = open_brace(input)?;
+    let (input, values) = map(
+        opt(tuple((
+            separated_nonempty_list(comma, literal_element),
+            opt(comma),
+        ))),
+        |i| i.map(|(j, _)| j).unwrap_or(vec![]),
+    )(input)?;
+    let (input, _) = close_brace(input)?;
+    Ok((input, values))
+}
 
-named!(pub expression(&[Token]) -> Expression, do_parse!(
-       head: unary_expression
-    >> tail: many0!(map!(tuple!(binary_op, unary_expression),
-                         |(op, expression)| OpExpression { op, expression } ))
+pub fn literal_element(input: &[Token]) -> IResult<LiteralElement> {
+    let (input, key) = opt(map(tuple((expr_or_literal_value, colon)), |(i, _)| i))(input)?;
+    let (input, element) = expr_or_literal_value(input)?;
 
-    >> (Expression { head, tail })
-));
+    Ok((input, LiteralElement { key, element }))
+}
 
-named!(pub expression_list(&[Token]) -> Vec<Expression>,
-    separated_nonempty_list!(comma, expression)
-);
+pub fn composite_literal(input: &[Token]) -> IResult<CompositeLiteral> {
+    let (input, start) = opt(tuple((open_bracket, dot_dot_dot, close_bracket)))(input)?;
+    let (input, t) = ty(input)?;
+    let (input, value) = literal_value(input)?;
+
+    Ok((
+        input,
+        CompositeLiteral {
+            strange_things: start.is_some(),
+            ty: t,
+            value,
+        },
+    ))
+}
+
+pub fn unary_expression(input: &[Token]) -> IResult<UnaryExpression> {
+    let (input, ops) = many0(unary_op)(input)?;
+    let (input, primary) = primary_expression(input)?;
+
+    Ok((input, UnaryExpression { ops, primary }))
+}
+
+pub fn expression(input: &[Token]) -> IResult<Expression> {
+    let (input, head) = unary_expression(input)?;
+    let (input, tail) = many0(map(
+        tuple((binary_op, unary_expression)),
+        |(op, expression)| OpExpression { op, expression },
+    ))(input)?;
+
+    Ok((input, Expression { head, tail }))
+}
+
+pub fn expression_list(input: &[Token]) -> IResult<Vec<Expression>> {
+    separated_list(comma, expression)(input)
+}

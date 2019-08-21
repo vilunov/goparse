@@ -1,12 +1,13 @@
 use std::char::from_u32;
 use std::str::CharIndices;
 use std::u32;
-use types::BinaryOp::*;
-use types::Literal::*;
-use types::PairedToken::*;
-use types::Punctuation::*;
-use types::Token::*;
-use types::*;
+
+use crate::types::BinaryOp::*;
+use crate::types::Literal::*;
+use crate::types::PairedToken::*;
+use crate::types::Punctuation::*;
+use crate::types::Token::*;
+use crate::types::*;
 
 /// Lexical analyser of Go source code.
 /// Stores information about scanned tokens
@@ -202,13 +203,13 @@ impl<'a> LexerInner<'a> {
                     Some((_, 'e')) | Some((_, 'E')) => {
                         let idx = self.process_exponent()?;
                         self.process_imaginary_float(idx_start, idx)
-                    },
+                    }
                     Some((_, 'i')) => {
                         self.adv();
                         Ok(Some(Lit(Imaginary(
                             self.input[idx_start..=idx].to_string(),
                         ))))
-                    },
+                    }
                     _ => Ok(Some(Lit(Float(self.input[idx_start..idx].to_string())))),
                 }
             }
@@ -355,7 +356,7 @@ impl<'a> LexerInner<'a> {
                         Some((_, 'e')) | Some((_, 'E')) => {
                             let idx = self.process_exponent()?;
                             return Ok(Some(Lit(Float(self.input[idx_start..idx].to_string()))));
-                        },
+                        }
                         Some((_, 'i')) => {
                             self.adv();
                             return Ok(Some(Lit(Imaginary(
@@ -436,7 +437,7 @@ impl<'a> LexerInner<'a> {
                 Some((_, '/')) => {
                     self.skip_chars(|x| x != '\n');
                     consume!(LineBreak)
-                },
+                }
                 // # Multiline Comments
                 Some((_, '*')) => {
                     let mut newline_flag = false;
@@ -449,23 +450,23 @@ impl<'a> LexerInner<'a> {
                                     true => consume!(LineBreak),
                                     false => {
                                         self.adv();
-                                        return self.next_token()
+                                        return self.next_token();
                                     }
-                                }
+                                },
                                 Some((_, '\n')) => {
                                     self.adv();
                                     newline_flag = true;
-                                },
-                                _ => ()
+                                }
+                                _ => (),
                             },
                             Some((_, '\n')) => {
                                 self.adv();
                                 newline_flag = true;
-                            },
-                            _ => return Err(Error::TokenizingError)
+                            }
+                            _ => return Err(Error::TokenizingError),
                         }
                     }
-                },
+                }
                 Some((_, '=')) => consume!(BinOpAssign(Divide)),
                 _ => return Ok(Some(BinOp(Divide))),
             },

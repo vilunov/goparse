@@ -1,4 +1,4 @@
-# Go Lexer & Parser
+# Go Parser
 
 This is the delivery for the third homework assignment of Compilers Construction of Innopolis University, Fall 2018
 
@@ -6,7 +6,7 @@ This is the delivery for the third homework assignment of Compilers Construction
 
 - Nikita Vilunov
 - Ivan Lyagaev
-- 4 Red Bull cans, 6 cups of coffee and a lot of "free" time 
+- 5 Red Bull cans, 9 cups of coffee and a lot of "free" time 
 
 ## BNF
 
@@ -18,12 +18,12 @@ Can be found [here](https://golang.org/ref/spec)
 - Run the tokenizer using by instruction below
 - Find the list of tokens in folder `output`
 
+## Requirements
+
+- cargo >= 1.37
+- rustc >= 1.37
+
 ## Running with Cargo
-
-Requirements:
-- Cargo >= 1.29
-- rustc >= 1.29
-
 
 **Building and running:**
 ```sh
@@ -35,13 +35,7 @@ cargo run
 cargo test
 ```
 
-## Documentation
-
-Requirements:
-- Cargo >= 1.29
-- rustdoc >= 1.29
-
-**Building:**
+**Building documentation:**
 ```sh
 cargo doc
 ```

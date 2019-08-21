@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::error::Error as StdError;
+use std::fmt::{Display, Error as FmtError, Formatter};
+
+use serde_derive::Serialize;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Keyword {
@@ -242,9 +246,6 @@ pub enum Error {
     SyntaxParsingError,
 }
 
-use std::error::Error as StdError;
-use std::fmt::{Formatter, Display, Error as FmtError};
-
 impl Display for Error {
     fn fmt<'a>(&self, f: &mut Formatter<'a>) -> Result<(), FmtError> {
         f.write_str("IncompleteParsing")?;
@@ -257,7 +258,7 @@ impl StdError for Error {
         "Some tokens were not consumed during syntactical analysis"
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         None
     }
 }

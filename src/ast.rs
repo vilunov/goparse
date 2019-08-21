@@ -1,4 +1,6 @@
-pub use types::{self, Literal, Keyword};
+use serde_derive::Serialize;
+
+pub use crate::types::{self, Keyword, Literal};
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct Program {
@@ -28,8 +30,14 @@ pub struct UnaryExpression {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum BinaryOp {
     BinOp(types::BinaryOp),
-    DoubleAnd, DoubleOr,
-    Equals, Le, Lt, Ge, Gt, Ne,
+    DoubleAnd,
+    DoubleOr,
+    Equals,
+    Le,
+    Lt,
+    Ge,
+    Gt,
+    Ne,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -60,7 +68,7 @@ pub struct ConstSpec {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct TypeSpec {
     pub identifier: usize,
-    pub ty: Ty
+    pub ty: Ty,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -73,9 +81,9 @@ pub struct VarSpec {
 pub enum VarRightSide {
     WithType {
         ty: Ty,
-        expression: Option<Vec<Expression>>
+        expression: Option<Vec<Expression>>,
     },
-    WithoutType(Vec<Expression>)
+    WithoutType(Vec<Expression>),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -86,20 +94,14 @@ pub enum TopLevelDecl {
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum FullIdentifier {
-    Qualified {
-        package: usize,
-        identifier: usize,
-    },
+    Qualified { package: usize, identifier: usize },
     Unqualified(usize),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum MethodSpec {
     Interface(FullIdentifier),
-    Method {
-        name: usize,
-        signature: Signature,
-    },
+    Method { name: usize, signature: Signature },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -130,7 +132,7 @@ pub enum Ty {
     },
     Map {
         keys: Box<Ty>,
-        elements: Box<Ty>
+        elements: Box<Ty>,
     },
     ChanRx(Box<Ty>),
     ChanTx(Box<Ty>),
@@ -157,7 +159,7 @@ pub enum ForClause {
     RangeIdents {
         identifiers: Vec<usize>,
         range: Box<Expression>,
-    }
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -199,7 +201,7 @@ pub enum Statement {
     For {
         clause: ForClause,
         body: Block,
-    }
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -221,7 +223,7 @@ pub enum CommCase {
     RecvIdentsStmt {
         list: Vec<usize>,
         expr: Expression,
-    }
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -270,7 +272,7 @@ pub enum SimpleStatement {
     ShortVarStmt {
         identifiers: Vec<usize>,
         expressions: Vec<Expression>,
-    }
+    },
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -330,7 +332,13 @@ pub struct PrimaryExpr {
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum UnaryOp {
-    Plus, Minus, Bang, Hat, Multiply, And, LeftArrow
+    Plus,
+    Minus,
+    Bang,
+    Hat,
+    Multiply,
+    And,
+    LeftArrow,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
@@ -342,7 +350,7 @@ pub struct Signature {
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub enum SignatureResult {
     Params(Vec<ParametersDecl>),
-    TypeResult(Ty)
+    TypeResult(Ty),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]

@@ -1,12 +1,7 @@
-#[macro_use]
-extern crate nom;
-extern crate regex;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-
+use std::fs::{create_dir, read_dir, read_to_string, write};
 use std::path::{Path, PathBuf};
-use std::fs::{read_to_string, write, read_dir, create_dir};
+
+use serde_derive::Serialize;
 
 pub mod ast;
 pub mod lexer;
@@ -23,16 +18,15 @@ struct CompleteOutput {
     string_literals: Vec<String>,
 }
 
-fn file_paths() -> impl Iterator<Item=PathBuf> {
-    read_dir(INPUT_FOLDER).unwrap()
+fn file_paths() -> impl Iterator<Item = PathBuf> {
+    read_dir(INPUT_FOLDER)
+        .unwrap()
         .flatten()
-        .filter(|i| i.path()
-            .extension()
-            .and_then(|i| i.to_str()) == Some("go"))
+        .filter(|i| i.path().extension().and_then(|i| i.to_str()) == Some("go"))
         .map(|i| i.path())
 }
 
-fn read_files(paths: impl Iterator<Item=PathBuf>) -> impl Iterator<Item=(PathBuf, String)> {
+fn read_files(paths: impl Iterator<Item = PathBuf>) -> impl Iterator<Item = (PathBuf, String)> {
     paths.flat_map(|path| match read_to_string(&path) {
         Ok(v) => Some((path, v)),
         Err(e) => {
@@ -42,11 +36,11 @@ fn read_files(paths: impl Iterator<Item=PathBuf>) -> impl Iterator<Item=(PathBuf
     })
 }
 
-fn write_file(path: &Path, input: &str) -> Result<(), Box<std::error::Error>> {
-    let (tokens, idents, strings): (Vec<types::Token>, _, _) = lexer::Lexer::new().tokenize(input)?.collect();
+fn write_file(path: &Path, input: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let (tokens, idents, strings): (Vec<types::Token>, _, _) =
+        lexer::Lexer::new().tokenize(input)?.collect();
     let ast = {
-        match syntax::program(tokens.as_slice())
-            .map_err(|_| types::Error::SyntaxParsingError)? {
+        match syntax::program(tokens.as_slice()).map_err(|_| types::Error::SyntaxParsingError)? {
             (&[], v) => v,
             _ => return Err(Box::new(types::Error::SyntaxParsingError)),
         }
