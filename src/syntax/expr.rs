@@ -1,32 +1,51 @@
-use ast::*;
-use types::PairedToken::*;
-use types::Punctuation::*;
-use types::Token::*;
-use types::*;
+use nom::branch::alt;
+use nom::combinator::{map, opt};
 
-use syntax::helpers::*;
-use syntax::{identifier, full_identifier, literal, ty};
+use nom::sequence::tuple;
 
-named!(primary_expression_inner(&[Token]) -> PrimaryExprInner, alt!(
-    map!(composite_literal, PrimaryExprInner::CompositeLiteral) |
-    map!(tuple!(open_paren, expression, close_paren),
-         |(_, i, _)| PrimaryExprInner::Parenthesis(Box::new(i))) |
-    do_parse!(
-           to: ty >> open_paren >> expr: expression >> opt!(comma) >> close_paren
-        >> (PrimaryExprInner::Conversion { to, expression: Box::new(expr) })
-    ) |
-    do_parse!(
-           receiver: ty >> method_identifier: identifier
-        >> (PrimaryExprInner::MethodExpr { receiver, method_identifier})
-    ) |
-    map!(full_identifier, PrimaryExprInner::Identifier) |
-    map!(literal, PrimaryExprInner::Literal)
-));
+use crate::ast::*;
+use crate::types::PairedToken::*;
+use crate::types::Punctuation::*;
+use crate::types::Token::*;
+use crate::types::*;
 
-named!(pub primary_expression(&[Token]) -> PrimaryExpr, do_parse!(
-       inner: primary_expression_inner >> mods: many0!(primary_expression_modifier)
-    >> (PrimaryExpr { inner, mods })
-));
+use crate::syntax::helpers::*;
+use crate::syntax::{identifier, full_identifier, literal, ty};
+
+use super::helpers::IResult;
+use nom::multi::many0;
+
+fn primary_expression_inner(input: &[Token]) -> IResult<PrimaryExprInner> {
+    fn conversion(input: &[Token]) -> IResult<PrimaryExprInner> {
+        let (input, to) = ty(input)?;
+        let (input, _) = open_paren(input)?;
+        let (input, expr) = expression(input)?;
+        let (input, _) = opt(comma)(input)?;
+        let (input, _) = close_paren(input)?;
+        Ok((input, PrimaryExprInner::Conversion { to, expression: Box::new(expr) }))
+    }
+
+    fn method_expr(input: &[Token]) -> IResult<PrimaryExprInner> {
+        let (input, receiver) = ty(input)?;
+        let (input, method_identifier) = identifier(input)?;
+        Ok((input, PrimaryExprInner::MethodExpr { receiver, method_identifier }))
+    }
+
+    alt((
+        map(composite_literal, PrimaryExprInner::CompositeLiteral),
+        map(tuple((open_paren, expression, close_paren)), |(_, i, _)| PrimaryExprInner::Parenthesis(Box::new(i))),
+        conversion,
+        method_expr,
+        map(full_identifier, PrimaryExprInner::Identifier),
+        map(literal, PrimaryExprInner::Literal)
+    ))(input)
+}
+
+pub fn primary_expression(input: &[Token]) -> IResult<PrimaryExpr> {
+    let (input, inner) = primary_expression_inner(input)?;
+    let (input, mods) = many0(primary_expression_modifier)(input)?;
+    Ok((input, PrimaryExpr { inner, mods }))
+}
 
 named!(primary_expression_modifier(&[Token]) -> PrimaryExprMod, alt!(
     do_parse!(

@@ -1,12 +1,12 @@
 use std::char::from_u32;
 use std::str::CharIndices;
 use std::u32;
-use types::BinaryOp::*;
-use types::Literal::*;
-use types::PairedToken::*;
-use types::Punctuation::*;
-use types::Token::*;
-use types::*;
+use crate::types::BinaryOp::*;
+use crate::types::Literal::*;
+use crate::types::PairedToken::*;
+use crate::types::Punctuation::*;
+use crate::types::Token::*;
+use crate::types::*;
 
 /// Lexical analyser of Go source code.
 /// Stores information about scanned tokens

@@ -1,4 +1,6 @@
-pub use types::{self, Literal, Keyword};
+use serde_derive::Serialize;
+
+pub use crate::types::{self, Literal, Keyword};
 
 #[derive(Eq, PartialEq, Debug, Clone, Serialize)]
 pub struct Program {

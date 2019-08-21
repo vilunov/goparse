@@ -1,12 +1,12 @@
-#[macro_use]
 extern crate nom;
 extern crate regex;
 extern crate serde_json;
-#[macro_use]
 extern crate serde_derive;
 
 use std::path::{Path, PathBuf};
 use std::fs::{read_to_string, write, read_dir, create_dir};
+
+use serde_derive::Serialize;
 
 pub mod ast;
 pub mod lexer;

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde_derive::Serialize;
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Keyword {
     Break,

@@ -1,6 +1,6 @@
-use lexer::*;
-use syntax::*;
-use types::*;
+use crate::lexer::*;
+use crate::syntax::*;
+use crate::types::*;
 
 fn lexical(inp: &str) -> (Vec<Token>, IdentifierStorage, StringLiteralsStorage) {
     Lexer::new().tokenize(inp).unwrap().collect()

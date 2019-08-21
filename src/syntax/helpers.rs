@@ -1,12 +1,12 @@
 use nom::{self, need_more, Context, Err as ParseError, ErrorKind, Needed};
 
-use ast::{UnaryOp, BinaryOp as AstBinaryOp};
-use types::BinaryOp::*;
-use types::PairedToken::*;
-use types::Punctuation::*;
-use types::Keyword::*;
-use types::Token::*;
-use types::*;
+use crate::ast::{UnaryOp, BinaryOp as AstBinaryOp};
+use crate::types::BinaryOp::*;
+use crate::types::PairedToken::*;
+use crate::types::Punctuation::*;
+use crate::types::Keyword::*;
+use crate::types::Token::*;
+use crate::types::*;
 
 pub type IResult<'a, T> = nom::IResult<&'a [Token], T>;
 

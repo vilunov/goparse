@@ -1,18 +1,19 @@
 use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
+use nom::apply;
 
-use ast::*;
-use types::BinaryOp::*;
-use types::Keyword::*;
-use types::Literal::*;
-use types::Token::*;
-use types::Punctuation::*;
-use types::*;
+use crate::ast::*;
+use crate::types::BinaryOp::*;
+use crate::types::Keyword::*;
+use crate::types::Literal::*;
+use crate::types::Token::*;
+use crate::types::Punctuation::*;
+use crate::types::*;
 
 mod helpers;
 mod expr;
 
-use self::helpers::*;
-pub use self::expr::*;
+use helpers::*;
+pub use expr::*;
 
 fn identifier(tokens: &[Token]) -> IResult<usize> {
     if tokens.len() < 1 {
