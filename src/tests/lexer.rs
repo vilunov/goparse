@@ -1,7 +1,7 @@
 use crate::lexer;
 use crate::types::Literal::*;
-use crate::types::Token::*;
 use crate::types::Token;
+use crate::types::Token::*;
 
 macro_rules! test_simple {
     ($name: ident, $input: expr, $expected: expr) => {

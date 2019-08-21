@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::error::Error as StdError;
+use std::fmt::{Display, Error as FmtError, Formatter};
 
 use serde_derive::Serialize;
 
@@ -243,9 +245,6 @@ pub enum Error {
     LiteralEnd,
     SyntaxParsingError,
 }
-
-use std::error::Error as StdError;
-use std::fmt::{Formatter, Display, Error as FmtError};
 
 impl Display for Error {
     fn fmt<'a>(&self, f: &mut Formatter<'a>) -> Result<(), FmtError> {

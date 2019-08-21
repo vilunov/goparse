@@ -1,57 +1,58 @@
+use nom::{Err, Needed};
 use nom::branch::alt;
 use nom::combinator::{complete, map, opt, value};
+use nom::error::{ErrorKind, ParseError};
 use nom::multi::{many0, separated_list, separated_nonempty_list};
 use nom::sequence::tuple;
-use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
+use serde_json::ser::State;
+
+pub use expr::*;
+use helpers::*;
 
 use crate::ast::*;
+use crate::types::*;
 use crate::types::BinaryOp::*;
 use crate::types::Keyword::*;
 use crate::types::Literal::*;
 use crate::types::Punctuation::*;
 use crate::types::Token::*;
-use crate::types::*;
 
 mod expr;
 mod helpers;
 
-pub use expr::*;
-use helpers::*;
-use serde_json::ser::State;
-
-fn identifier(tokens: &[Token]) -> IResult<usize> {
-    if tokens.len() < 1 {
-        need_more(tokens, Needed::Size(1))
-    } else if let Ident(id) = tokens[0] {
-        Ok((&tokens[1..], id))
+fn identifier(inputs: &[Token]) -> IResult<usize> {
+    if inputs.len() < 1 {
+        Err(Err::Incomplete(Needed::Size(1)))
+    } else if let Ident(id) = inputs[0] {
+        Ok((&inputs[1..], id))
     } else {
-        Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))
+        Err(Err::Error(<_>::from_error_kind(inputs, ErrorKind::Tag)))
     }
 }
 
-fn identifier_list(input: &[Token]) -> IResult<Vec<usize>> {
-    separated_nonempty_list(comma, identifier)(input)
+fn identifier_list(inputs: &[Token]) -> IResult<Vec<usize>> {
+    separated_nonempty_list(comma, identifier)(inputs)
 }
 
-fn string_literal(tokens: &[Token]) -> IResult<usize> {
-    if tokens.len() < 1 {
-        need_more(tokens, Needed::Size(1))
-    } else if let Lit(InterpretedString(id)) = tokens[0] {
-        Ok((&tokens[1..], id))
-    } else if let Lit(RawString(id)) = tokens[0] {
-        Ok((&tokens[1..], id))
+fn string_literal(inputs: &[Token]) -> IResult<usize> {
+    if inputs.len() < 1 {
+        Err(Err::Incomplete(Needed::Size(1)))
+    } else if let Lit(InterpretedString(id)) = inputs[0] {
+        Ok((&inputs[1..], id))
+    } else if let Lit(RawString(id)) = inputs[0] {
+        Ok((&inputs[1..], id))
     } else {
-        Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))
+        Err(Err::Error(<_>::from_error_kind(inputs, ErrorKind::Tag)))
     }
 }
 
 fn literal(tokens: &[Token]) -> IResult<Literal> {
     if tokens.len() < 1 {
-        need_more(tokens, Needed::Size(1))
+        Err(Err::Incomplete(Needed::Size(1)))
     } else if let Lit(ref lit) = tokens[0] {
         Ok((&tokens[1..], lit.clone()))
     } else {
-        Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))
+        Err(Err::Error(<_>::from_error_kind(tokens, ErrorKind::Tag)))
     }
 }
 
@@ -434,28 +435,37 @@ fn stmt(input: &[Token]) -> IResult<Statement> {
         map(decl, Statement::Decl),
         map(simple_stmt, Statement::Simple),
         labeled_stmt,
-        map(tuple((|input| token(input, Kw(Go)), expression)), |(_, i)| {
-            Statement::Go(i)
-        }),
-        map(tuple((|input| token(input, Kw(Defer)), expression)), |(_, i)| {
-            Statement::Defer(i)
-        }),
         map(
-            tuple((|input| token(input, Kw(Return)), separated_list(comma, expression))),
+            tuple((|input| token(input, Kw(Go)), expression)),
+            |(_, i)| Statement::Go(i),
+        ),
+        map(
+            tuple((|input| token(input, Kw(Defer)), expression)),
+            |(_, i)| Statement::Defer(i),
+        ),
+        map(
+            tuple((
+                |input| token(input, Kw(Return)),
+                separated_list(comma, expression),
+            )),
             |(_, i)| Statement::Return(i),
         ),
         map(
-            tuple((|input| token(input, Kw(Break)), opt(expression))),
+            tuple((|input| token(input, Kw(Break)), opt(identifier))),
             |(_, i)| Statement::Break(i),
         ),
         map(
-            tuple((|input| token(input, Kw(Continue)), opt(expression))),
+            tuple((|input| token(input, Kw(Continue)), opt(identifier))),
             |(_, i)| Statement::Continue(i),
         ),
-        map(tuple((|input| token(input, Kw(Goto)), identifier)), |(_, i)| {
-            Statement::Goto(i)
-        }),
-        map(|input| token(input, Kw(Fallthrough)), |_| Statement::Fallthrough),
+        map(
+            tuple((|input| token(input, Kw(Goto)), identifier)),
+            |(_, i)| Statement::Goto(i),
+        ),
+        map(
+            |input| token(input, Kw(Fallthrough)),
+            |_| Statement::Fallthrough,
+        ),
         map(block, Statement::Block),
         map(if_statement, Statement::If),
         expr_switch,
@@ -679,7 +689,13 @@ fn select_stmt(input: &[Token]) -> IResult<Statement> {
             map(kw_default, |_| None),
         ))(input)?;
         let (input, statements) = separated_list(comma, stmt)(input)?;
-        Ok((input, SelectClause { comm_case, statements}))
+        Ok((
+            input,
+            SelectClause {
+                comm_case,
+                statements,
+            },
+        ))
     }
 
     let (input, _) = kw_select(input)?;

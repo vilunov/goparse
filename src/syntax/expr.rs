@@ -1,20 +1,14 @@
 use nom::branch::alt;
 use nom::combinator::{map, opt};
-
+use nom::multi::{many0, separated_list, separated_nonempty_list};
 use nom::sequence::tuple;
 
 use crate::ast::*;
-use crate::types::PairedToken::*;
-use crate::types::Punctuation::*;
-use crate::types::Token::*;
+use crate::syntax::{full_identifier, identifier, literal, ty};
+use crate::syntax::helpers::*;
 use crate::types::*;
 
-use crate::syntax::helpers::*;
-use crate::syntax::{full_identifier, identifier, literal, ty};
-
 use super::helpers::IResult;
-use nom::multi::{many0, separated_list, separated_nonempty_list};
-use serde::de::Unexpected::Bool;
 
 fn primary_expression_inner(input: &[Token]) -> IResult<PrimaryExprInner> {
     fn conversion(input: &[Token]) -> IResult<PrimaryExprInner> {
