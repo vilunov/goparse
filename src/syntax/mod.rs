@@ -1,22 +1,23 @@
-use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
-use nom::multi::{separated_nonempty_list, many0, separated_list};
-use nom::combinator::{map, opt, value};
 use nom::branch::alt;
+use nom::combinator::{complete, map, opt, value};
+use nom::multi::{many0, separated_list, separated_nonempty_list};
 use nom::sequence::tuple;
+use nom::{need_more, Context, Err as ParseError, ErrorKind, Needed};
 
 use crate::ast::*;
 use crate::types::BinaryOp::*;
 use crate::types::Keyword::*;
 use crate::types::Literal::*;
-use crate::types::Token::*;
 use crate::types::Punctuation::*;
+use crate::types::Token::*;
 use crate::types::*;
 
-mod helpers;
 mod expr;
+mod helpers;
 
-use helpers::*;
 pub use expr::*;
+use helpers::*;
+use serde_json::ser::State;
 
 fn identifier(tokens: &[Token]) -> IResult<usize> {
     if tokens.len() < 1 {
@@ -26,7 +27,6 @@ fn identifier(tokens: &[Token]) -> IResult<usize> {
     } else {
         Err(ParseError::Error(Context::Code(tokens, ErrorKind::Tag)))
     }
-
 }
 
 fn identifier_list(input: &[Token]) -> IResult<Vec<usize>> {
@@ -59,13 +59,19 @@ fn qualified_identifier(input: &[Token]) -> IResult<FullIdentifier> {
     let (input, package) = identifier(input)?;
     let (input, _) = dot(input)?;
     let (input, identifier) = identifier(input)?;
-    Ok((input, FullIdentifier::Qualified {package, identifier }))
+    Ok((
+        input,
+        FullIdentifier::Qualified {
+            package,
+            identifier,
+        },
+    ))
 }
 
 pub fn full_identifier(input: &[Token]) -> IResult<FullIdentifier> {
     alt((
         qualified_identifier,
-        map(identifier, FullIdentifier::Unqualified)
+        map(identifier, FullIdentifier::Unqualified),
     ))(input)
 }
 
@@ -75,7 +81,13 @@ pub fn ty(input: &[Token]) -> IResult<Ty> {
         let (input, length) = opt(expression)(input)?;
         let (input, _) = close_bracket(input)?;
         let (input, elems) = ty(input)?;
-        Ok((input, Ty::Array { length: length.map(Box::new), elements: Box::new(elems) }))
+        Ok((
+            input,
+            Ty::Array {
+                length: length.map(Box::new),
+                elements: Box::new(elems),
+            },
+        ))
     }
 
     fn boxx(input: &[Token]) -> IResult<Ty> {
@@ -84,7 +96,13 @@ pub fn ty(input: &[Token]) -> IResult<Ty> {
         let (input, keys) = ty(input)?;
         let (input, _) = close_bracket(input)?;
         let (input, elems) = ty(input)?;
-        Ok((input, Ty::Map { keys: Box::new(keys), elements: Box::new(elems) }))
+        Ok((
+            input,
+            Ty::Map {
+                keys: Box::new(keys),
+                elements: Box::new(elems),
+            },
+        ))
     }
 
     fn pointer(input: &[Token]) -> IResult<Ty> {
@@ -159,7 +177,6 @@ pub fn ty(input: &[Token]) -> IResult<Ty> {
     ))(input)
 }
 
-
 fn method_spec(input: &[Token]) -> IResult<MethodSpec> {
     fn method(input: &[Token]) -> IResult<MethodSpec> {
         let (input, name) = identifier(input)?;
@@ -172,10 +189,7 @@ fn method_spec(input: &[Token]) -> IResult<MethodSpec> {
         Ok((input, MethodSpec::Interface(identifier)))
     }
 
-    alt((
-        method,
-        interface,
-    ))(input)
+    alt((method, interface))(input)
 }
 
 fn field_decl(input: &[Token]) -> IResult<FieldDecl> {
@@ -222,7 +236,13 @@ fn const_spec(input: &[Token]) -> IResult<ConstSpec> {
 
     let (input, identifiers) = identifier_list(input)?;
     let (input, right_side) = opt(right_side)(input)?;
-    Ok((input, ConstSpec { identifiers, right_side }))
+    Ok((
+        input,
+        ConstSpec {
+            identifiers,
+            right_side,
+        },
+    ))
 }
 
 fn const_decl(input: &[Token]) -> IResult<Vec<ConstSpec>> {
@@ -260,7 +280,13 @@ fn var_spec(input: &[Token]) -> IResult<VarSpec> {
 
     let (input, identifiers) = identifier_list(input)?;
     let (input, right_side) = opt(alt((right_side_with_type, right_side_without_type)))(input)?;
-    Ok((input, VarSpec { identifiers, right_side }))
+    Ok((
+        input,
+        VarSpec {
+            identifiers,
+            right_side,
+        },
+    ))
 }
 
 fn var_decl(input: &[Token]) -> IResult<Vec<VarSpec>> {
@@ -274,7 +300,14 @@ pub fn parameters_spec(input: &[Token]) -> IResult<ParametersDecl> {
     let (input, ddd) = opt(dot_dot_dot)(input)?;
     let (input, ty) = ty(input)?;
     let dotdotdot = ddd.is_some();
-    Ok((input, ParametersDecl { idents, dotdotdot, ty }))
+    Ok((
+        input,
+        ParametersDecl {
+            idents,
+            dotdotdot,
+            ty,
+        },
+    ))
 }
 
 fn parameters_decl(input: &[Token]) -> IResult<Vec<ParametersDecl>> {
@@ -290,7 +323,13 @@ pub fn signature(input: &[Token]) -> IResult<Signature> {
         map(ty, SignatureResult::TypeResult),
         map(parameters_decl, SignatureResult::Params),
     )))(input)?;
-    Ok((input, Signature { params, result: result.map(Box::new) }))
+    Ok((
+        input,
+        Signature {
+            params,
+            result: result.map(Box::new),
+        },
+    ))
 }
 
 fn func_decl(input: &[Token]) -> IResult<FuncDecl> {
@@ -299,7 +338,15 @@ fn func_decl(input: &[Token]) -> IResult<FuncDecl> {
     let (input, name) = identifier(input)?;
     let (input, signature) = signature(input)?;
     let (input, body) = opt(block)(input)?;
-    Ok((input, FuncDecl { name, receiver, signature, body }))
+    Ok((
+        input,
+        FuncDecl {
+            name,
+            receiver,
+            signature,
+            body,
+        },
+    ))
 }
 
 fn decl(input: &[Token]) -> IResult<Declaration> {
@@ -324,14 +371,20 @@ fn simple_stmt(input: &[Token]) -> IResult<SimpleStatement> {
         let (input, left) = expression_list(input)?;
         let (input, op) = assign_op(input)?;
         let (input, right) = expression_list(input)?;
-        Ok((input, SimpleStatement::AssignStmt {left, op, right}))
+        Ok((input, SimpleStatement::AssignStmt { left, op, right }))
     }
 
     fn short_var_stmt(input: &[Token]) -> IResult<SimpleStatement> {
         let (input, identifiers) = identifier_list(input)?;
         let (input, _) = colon_assign(input)?;
         let (input, expressions) = expression_list(input)?;
-        Ok((input, SimpleStatement::ShortVarStmt { identifiers, expressions}))
+        Ok((
+            input,
+            SimpleStatement::ShortVarStmt {
+                identifiers,
+                expressions,
+            },
+        ))
     }
 
     fn send_stmt(input: &[Token]) -> IResult<SimpleStatement> {
@@ -359,177 +412,297 @@ fn simple_stmt(input: &[Token]) -> IResult<SimpleStatement> {
         send_stmt,
         inc_stmt,
         dec_stmt,
-        map(expression, SimpleStatement::Expr)
+        map(expression, SimpleStatement::Expr),
     ))(input)
 }
 
-named!(stmt(&[Token]) -> Statement, alt!(
-    map!(decl, Statement::Decl) |
-    map!(simple_stmt, Statement::Simple) |
-    do_parse!(
-           label: identifier
-        >> colon
-        >> stmt: stmt
-        >> (Statement::Labeled { label, statement: Box::new(stmt) })
-    ) |
-    map!(tuple!(apply!(token, Kw(Go)), expression), |(_, i)| Statement::Go(i)) |
-    map!(tuple!(apply!(token, Kw(Defer)), expression), |(_, i)| Statement::Defer(i)) |
-    map!(tuple!(apply!(token, Kw(Return)), separated_list!(comma, expression)),
-         |(_, i)| Statement::Return(i)) |
-    map!(tuple!(apply!(token, Kw(Break)), opt!(identifier)), |(_, i)| Statement::Break(i)) |
-    map!(tuple!(apply!(token, Kw(Continue)), opt!(identifier)), |(_, i)| Statement::Continue(i)) |
-    map!(tuple!(apply!(token, Kw(Goto)), identifier), |(_, i)| Statement::Goto(i)) |
-    map!(apply!(token, Kw(Fallthrough)), |_| Statement::Fallthrough) |
-    map!(block, Statement::Block) |
-    map!(if_statement, Statement::If) |
-    expr_switch |
-    type_switch |
-    map!(tuple!(kw_for, for_clause, block), |(_, clause, body)| Statement::For { clause, body })
-));
+fn stmt(input: &[Token]) -> IResult<Statement> {
+    fn labeled_stmt(input: &[Token]) -> IResult<Statement> {
+        let (input, label) = identifier(input)?;
+        let (input, _) = colon(input)?;
+        let (input, stmt) = stmt(input)?;
+        Ok((
+            input,
+            Statement::Labeled {
+                label,
+                statement: Box::new(stmt),
+            },
+        ))
+    }
 
-named!(for_clause(&[Token]) -> ForClause, alt!(
-    do_parse!(
-           init: opt!(simple_stmt) >> semicolon
-        >> condition: opt!(expression) >> semicolon
-        >> post: opt!(simple_stmt)
-        >> (ForClause::Clause {
-            init: init.map(Box::new),
-            condition: condition.map(Box::new),
-            post: post.map(Box::new)
-        })
-    ) |
-    do_parse!(
-           expr: expression_list >> assign
-        >> kw_range
-        >> range: expression
-        >> (ForClause::RangeExpr { expr, range: Box::new(range) })
-    ) |
-    do_parse!(
-           identifiers: identifier_list >> colon_assign
-        >> kw_range
-        >> range: expression
-        >> (ForClause::RangeIdents { identifiers, range: Box::new(range) })
-    ) |
-    map!(tuple!(kw_range, expression), |(_, i)| ForClause::Range(Box::new(i))) |
-    map!(expression, |i| ForClause::Condition(Box::new(i)))
-));
+    alt((
+        map(decl, Statement::Decl),
+        map(simple_stmt, Statement::Simple),
+        labeled_stmt,
+        map(tuple((|input| token(input, Kw(Go)), expression)), |(_, i)| {
+            Statement::Go(i)
+        }),
+        map(tuple((|input| token(input, Kw(Defer)), expression)), |(_, i)| {
+            Statement::Defer(i)
+        }),
+        map(
+            tuple((|input| token(input, Kw(Return)), separated_list(comma, expression))),
+            |(_, i)| Statement::Return(i),
+        ),
+        map(
+            tuple((|input| token(input, Kw(Break)), opt(expression))),
+            |(_, i)| Statement::Break(i),
+        ),
+        map(
+            tuple((|input| token(input, Kw(Continue)), opt(expression))),
+            |(_, i)| Statement::Continue(i),
+        ),
+        map(tuple((|input| token(input, Kw(Goto)), identifier)), |(_, i)| {
+            Statement::Goto(i)
+        }),
+        map(|input| token(input, Kw(Fallthrough)), |_| Statement::Fallthrough),
+        map(block, Statement::Block),
+        map(if_statement, Statement::If),
+        expr_switch,
+        type_switch,
+        map(tuple((kw_for, for_clause, block)), |(_, clause, body)| {
+            Statement::For { clause, body }
+        }),
+    ))(input)
+}
 
-named!(if_statement(&[Token]) -> IfStmt, do_parse!(
-       apply!(token, Kw(If))
-    >> simple: opt!(map!(tuple!(simple_stmt, semicolon), |(i, _)| i))
-    >> expression: expression
-    >> block: block
-    >> e: opt!(if_inner)
+fn for_clause(input: &[Token]) -> IResult<ForClause> {
+    fn for_clause_clause(input: &[Token]) -> IResult<ForClause> {
+        let (input, init) = opt(simple_stmt)(input)?;
+        let (input, condition) = opt(expression)(input)?;
+        let (input, _) = semicolon(input)?;
+        let (input, post) = opt(simple_stmt)(input)?;
+        Ok((
+            input,
+            ForClause::Clause {
+                init: init.map(Box::new),
+                condition: condition.map(Box::new),
+                post: post.map(Box::new),
+            },
+        ))
+    }
 
-    >> (IfStmt {simple, expression, block, else_branch: e.map(Box::new) })
-));
+    fn range_expr(input: &[Token]) -> IResult<ForClause> {
+        let (input, expr) = expression_list(input)?;
+        let (input, _) = kw_range(input)?;
+        let (input, range) = expression(input)?;
+        Ok((
+            input,
+            ForClause::RangeExpr {
+                expr,
+                range: Box::new(range),
+            },
+        ))
+    }
 
-named!(if_inner(&[Token]) -> IfInner, do_parse!(
-       apply!(token, Kw(Else))
-    >> i: alt!(map!(if_statement, IfInner::IfStmt) | map!(block, IfInner::Block))
+    fn range_idents(input: &[Token]) -> IResult<ForClause> {
+        let (input, identifiers) = identifier_list(input)?;
+        let (input, _) = colon(input)?;
+        let (input, _) = kw_range(input)?;
+        let (input, range) = expression(input)?;
+        Ok((
+            input,
+            ForClause::RangeIdents {
+                identifiers,
+                range: Box::new(range),
+            },
+        ))
+    }
 
-    >> (i)
-));
+    alt((
+        for_clause_clause,
+        range_expr,
+        range_idents,
+        map(tuple((kw_range, expression)), |(_, i)| {
+            ForClause::Range(Box::new(i))
+        }),
+        map(expression, |i| ForClause::Condition(Box::new(i))),
+    ))(input)
+}
 
-named!(block(&[Token]) -> Block, do_parse!(
-       open_brace
-    >> statements: many0!(map!(tuple!(stmt, semicolon), |(i, _)| i))
-    >> close_brace
+fn if_statement(input: &[Token]) -> IResult<IfStmt> {
+    let (input, _) = token(input, Kw(If))?;
+    let (input, simple) = opt(map(tuple((simple_stmt, semicolon)), |(i, _)| i))(input)?;
+    let (input, expression) = expression(input)?;
+    let (input, block) = block(input)?;
+    let (input, e) = opt(if_inner)(input)?;
 
-    >> (Block { statements })
-));
-
-named!(expr_switch(&[Token]) -> Statement, do_parse!(
-       apply!(token, Kw(Switch))
-    >> simple: opt!(map!(tuple!(simple_stmt, semicolon), |(i, _)| i))
-    >> expression: opt!(expression)
-    >> open_brace
-    >> clauses: many0!(do_parse!(
-           expressions: alt!(
-               map!(apply!(token, Kw(Default)), |_| None) |
-               map!(tuple!(apply!(token, Kw(Case)), expression_list), |(_, i)| Some(i))
-           )
-        >> colon
-        >> statements: separated_list!(semicolon, stmt)
-        >> semicolon
-        >> (ExprSwitchCase { expressions, statements })
+    Ok((
+        input,
+        IfStmt {
+            simple,
+            expression,
+            block,
+            else_branch: e.map(Box::new),
+        },
     ))
-    >> close_brace
+}
 
-    >> (Statement::ExprSwitchStmt { simple, expression, clauses })
-));
+fn if_inner(input: &[Token]) -> IResult<IfInner> {
+    let (input, _) = token(input, Kw(Else))?;
+    alt((
+        map(if_statement, IfInner::IfStmt),
+        map(block, IfInner::Block),
+    ))(input)
+}
 
-named!(type_switch_guard(&[Token]) -> TypeSwitchGuard, do_parse!(
-       identifier: opt!(map!(tuple!(identifier, colon_assign), |(i, _)| i))
-    >> primary: primary_expression
+fn block(input: &[Token]) -> IResult<Block> {
+    let (input, _) = open_brace(input)?;
+    let (input, statements) = many0(map(tuple((stmt, semicolon)), |(i, _)| i))(input)?;
+    let (input, _) = close_brace(input)?;
 
-    >> (TypeSwitchGuard { identifier, primary })
-));
+    Ok((input, Block { statements }))
+}
 
-named!(type_switch(&[Token]) -> Statement, do_parse!(
-       apply!(token, Kw(Switch))
-    >> simple: opt!(map!(tuple!(simple_stmt, semicolon), |(i, _)| i))
-    >> guard: type_switch_guard
-    >> dot >> open_paren >> apply!(token, Kw(Type)) >> close_paren >> open_brace
+fn expr_switch(input: &[Token]) -> IResult<Statement> {
+    fn expressions(input: &[Token]) -> IResult<ExprSwitchCase> {
+        let (input, expressions) = map(|input| token(input, Kw(Default)), |_| None)(input)?;
+        let (input, _) = colon(input)?;
+        let (input, statements) = separated_list(semicolon, stmt)(input)?;
+        let (input, _) = semicolon(input)?;
 
+        Ok((
+            input,
+            ExprSwitchCase {
+                expressions,
+                statements,
+            },
+        ))
+    }
 
-    >> clauses: many0!(do_parse!(
-           type_list: alt!(
-               map!(apply!(token, Kw(Default)), |_| None) |
-               map!(tuple!(apply!(token, Kw(Case)), separated_nonempty_list!(comma, ty)), |(_, i)| Some(i))
-           )
-        >> colon
-        >> statements: separated_list!(semicolon, stmt)
-        >> semicolon
-        >> (TypeSwitchCase { type_list, statements })
+    let (input, _) = token(input, Kw(Switch))?;
+    let (input, simple) = opt(map(tuple((simple_stmt, semicolon)), |(i, _)| i))(input)?;
+    let (input, expression) = opt(expression)(input)?;
+    let (input, clauses) = many0(expressions)(input)?;
+    let (input, _) = close_brace(input)?;
+
+    Ok((
+        input,
+        Statement::ExprSwitchStmt {
+            simple,
+            expression,
+            clauses,
+        },
     ))
-    >> close_brace
+}
 
-    >> (Statement::TypeSwitchStmt { simple, guard, clauses })
-));
+fn type_switch_guard(input: &[Token]) -> IResult<TypeSwitchGuard> {
+    let (input, identifier) = opt(map(tuple((identifier, colon_assign)), |(i, _)| i))(input)?;
+    let (input, primary) = primary_expression(input)?;
 
-named!(select_stmt(&[Token]) -> Statement, do_parse!(
-       kw_select
-    >> open_brace
-    >> clauses: many0!(do_parse!(
-            comm_case: alt!(
-                 map!(tuple!(
-                        kw_case,
-                        expression,
-                        apply!(token, Punc(LeftArrow)),
-                        expression),
-                 |(_, left, _, right)| Some(CommCase::SendStmt { left, right })) |
-                 map!(tuple!(
-                        kw_case,
-                        expression_list,
-                        assign,
-                        expression),
-                 |(_, list, _, expr)| Some(CommCase::RecvExprStmt { list, expr })) |
-                 map!(tuple!(
-                        kw_case,
-                        identifier_list,
-                        assign,
-                        expression),
-                 |(_, list, _, expr)| Some(CommCase::RecvIdentsStmt { list, expr})) |
-                 map!(kw_default, |_| None)
-            )
-        >> statements: separated_list!(comma, stmt)
-
-        >> (SelectClause { comm_case, statements })
+    Ok((
+        input,
+        TypeSwitchGuard {
+            identifier,
+            primary,
+        },
     ))
-    >> close_brace
+}
 
-    >> (Statement::SelectStmt(clauses) )
-));
+fn type_switch(input: &[Token]) -> IResult<Statement> {
+    fn type_switch_case(input: &[Token]) -> IResult<TypeSwitchCase> {
+        let (input, type_list) = alt((
+            map(|input| token(input, Kw(Default)), |_| None),
+            map(
+                tuple((
+                    |input| token(input, Kw(Case)),
+                    separated_nonempty_list(comma, ty),
+                )),
+                |(_, i)| Some(i),
+            ),
+        ))(input)?;
 
-named!(pub program(&[Token]) -> Program, do_parse!(
-       apply!(token, Kw(Package))
-    >> package: identifier
-    >> semicolon
-    >> imports: map!(many0!(complete!(import_decl)), flat_vec)
-    >> decls: many0!(complete!(top_level_decl))
+        let (input, _) = colon(input)?;
+        let (input, statements) = separated_list(semicolon, stmt)(input)?;
+        Ok((
+            input,
+            TypeSwitchCase {
+                type_list,
+                statements,
+            },
+        ))
+    }
 
-    >> (Program {
-        package, imports, decls,
-    })
-));
+    let (input, _) = token(input, Kw(Switch))?;
+    let (input, simple) = opt(map(tuple((simple_stmt, semicolon)), |(i, _)| i))(input)?;
+    let (input, guard) = type_switch_guard(input)?;
+    let (input, _) = dot(input)?;
+    let (input, _) = open_paren(input)?;
+    let (input, _) = token(input, Kw(Type))?;
+    let (input, _) = close_paren(input)?;
+    let (input, _) = open_brace(input)?;
+    let (input, clauses) = many0(type_switch_case)(input)?;
+    let (input, _) = close_brace(input)?;
+
+    Ok((
+        input,
+        Statement::TypeSwitchStmt {
+            simple,
+            guard,
+            clauses,
+        },
+    ))
+}
+
+fn select_stmt(input: &[Token]) -> IResult<Statement> {
+    fn send_stmt(input: &[Token]) -> IResult<Option<CommCase>> {
+        map(
+            tuple((
+                kw_case,
+                expression,
+                |input| token(input, Punc(LeftArrow)),
+                expression,
+            )),
+            |(_, left, _, right)| Some(CommCase::SendStmt { left, right }),
+        )(input)
+    }
+
+    fn recv_expr_stmt(input: &[Token]) -> IResult<Option<CommCase>> {
+        map(
+            tuple((kw_case, expression_list, assign, expression)),
+            |(_, list, _, expr)| Some(CommCase::RecvExprStmt { list, expr }),
+        )(input)
+    }
+
+    fn recv_idents_stmt(input: &[Token]) -> IResult<Option<CommCase>> {
+        map(
+            tuple((kw_case, identifier_list, assign, expression)),
+            |(_, list, _, expr)| Some(CommCase::RecvIdentsStmt { list, expr }),
+        )(input)
+    }
+
+    fn select_clause(input: &[Token]) -> IResult<SelectClause> {
+        let (input, comm_case) = alt((
+            send_stmt,
+            recv_expr_stmt,
+            recv_idents_stmt,
+            map(kw_default, |_| None),
+        ))(input)?;
+        let (input, statements) = separated_list(comma, stmt)(input)?;
+        Ok((input, SelectClause { comm_case, statements}))
+    }
+
+    let (input, _) = kw_select(input)?;
+    let (input, _) = open_brace(input)?;
+    let (input, clauses) = many0(select_clause)(input)?;
+    let (input, _) = close_brace(input)?;
+
+    Ok((input, Statement::SelectStmt(clauses)))
+}
+
+pub fn program(input: &[Token]) -> IResult<Program> {
+    let (input, _) = token(input, Kw(Package))?;
+    let (input, package) = identifier(input)?;
+    let (input, _) = semicolon(input)?;
+    let (input, imports) = map(many0(complete(import_decl)), flat_vec)(input)?;
+    let (input, decls) = many0(complete(top_level_decl))(input)?;
+
+    Ok((
+        input,
+        Program {
+            package,
+            imports,
+            decls,
+        },
+    ))
+}
